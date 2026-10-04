@@ -1,0 +1,40 @@
+# Objective builds of the browser build (the `browser` condition), raw and gzip, for the size comparison; the
+# shipped dist/browser build is the Brotli objective.: named character references are decoded by the document.
+# lil2-mdast-util-to-hast: typed, flat mdast-util-to-hast. Compiler-owned delivery.
+[policy]
+version = 3
+
+[policy.tactics]
+# Permit one-time constant-table decoding (the entity table) for smaller downloads.
+startup-reconstruction = "on"
+recurring-reconstruction = "off"
+string-array-packing = "off"
+
+[javascript]
+priority = "size-first"
+assume_pristine_builtins = true
+strip_debug = true
+assume_pure_property_reads = true
+assume_unconstructed_callbacks = true
+
+[effort]
+level = 15
+
+[objective]
+codecs = ["raw", "gzip"]
+
+[mangle]
+identifiers = true
+properties = true
+pool_strings = true
+
+[defines]
+BROWSER = true
+
+[delivery]
+mode = "single"
+directory = "objectives"
+entry_names = "rehype-katex.js"
+
+[delivery.entries]
+index = "src/index.lil"
