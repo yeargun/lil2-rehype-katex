@@ -2,7 +2,7 @@
 
 import { CR, LF } from "../micromark/codes.lil";
 import { tAtxHeading, tListItem, tAtxHeadingSequence, tAutolink, tAutolinkEmail, tAutolinkProtocol, tBlockQuote, tBlockQuoteMarker, tBlockQuotePrefix, tBlockQuotePrefixWhitespace, tCharacterEscape, tCharacterEscapeValue, tCharacterReference, tCharacterReferenceMarkerHexadecimal, tCharacterReferenceMarkerNumeric, tCharacterReferenceValue, tCodeFenced, tCodeFencedFence, tCodeFencedFenceInfo, tCodeFencedFenceMeta, tCodeFlowValue, tCodeIndented, tCodeText, tCodeTextData, tData, tDefinition, tDefinitionDestinationString, tDefinitionLabelString, tDefinitionTitleString, tEmphasis, tHardBreakEscape, tHardBreakTrailing, tHtmlFlow, tHtmlFlowData, tHtmlText, tHtmlTextData, tImage, tLabel, tLabelText, tLineEnding, tLineEndingBlank, tLinePrefix, tLink, tListItemIndent, tListItemMarker, tListItemPrefix, tListItemPrefixWhitespace, tListItemValue, tListOrdered, tListUnordered, tParagraph, tReference, tReferenceString, tResource, tResourceDestinationString, tResourceTitleString, tSetextHeading, tSetextHeadingLineSequence, tSetextHeadingText, tStrong, tThematicBreak } from "../micromark/types.lil";
-import { Parser, Tokens, enterEvent, eventToken, exitEvent, isEnter, serializeToken, splice } from "../micromark/tokenizer.lil";
+import { Parser, Tokens, enterEvent, eventToken, exitEvent, isEnter, serializeToken } from "../micromark/tokenizer.lil";
 import { decodeNamed, decodeNumeric, decodeString, normalizeIdentifier } from "../micromark/util.lil";
 import { K_BLOCKQUOTE, K_BREAK, K_CODE, K_DEFINITION, K_EMPHASIS, K_FRAGMENT, K_HEADING, K_HTML, K_IMAGE, K_IMAGE_REFERENCE, K_INLINE_CODE, K_LINK, K_LINK_REFERENCE, K_LIST, K_LIST_ITEM, K_PARAGRAPH, K_ROOT, K_STRONG, K_TEXT, K_THEMATIC_BREAK, N_CHECKED_SET, N_HAS_POSITION, N_END_SET, N_IDENTIFIER_SET, N_LABEL_SET, N_ORDERED, N_S2_SET, N_S3_SET, N_SPREAD, N_START_SET, N_URL_SET, Tree, toString } from "./tree.lil";
 
@@ -12,12 +12,51 @@ export const int F_SPREAD = 256;
 
 func(FromMarkdown, int)->void noHandler = (FromMarkdown c, int token) => {};
 
+// The indexes of `positions`, ordered by position, ties in index order (a stable bottom-up merge sort).
+int[] byPosition(int[] positions) {
+  int[] order = [];
+  for (int index = 0; index < positions.length; index++) {
+    order.push(index);
+  }
+  int[] spare = order.slice();
+  int width = 1;
+  while (width < order.length) {
+    int start = 0;
+    while (start < order.length) {
+      int middle = if (start + width < order.length) { start + width } else { order.length };
+      int end = if (start + 2 * width < order.length) { start + 2 * width } else { order.length };
+      int left = start;
+      int right = middle;
+      int out = start;
+      while (left < middle || right < end) {
+        if (right >= end || (left < middle && positions[order[left]] <= positions[order[right]])) {
+          spare[out] = order[left];
+          left++;
+        } else {
+          spare[out] = order[right];
+          right++;
+        }
+        out++;
+      }
+      start = end;
+    }
+    int[] swap = order;
+    order = spare;
+    spare = swap;
+    width = width * 2;
+  }
+  return order;
+}
+
 export class FromMarkdown {
   Parser parser;
   Tokens tokens;
   Tree tree;
   int[] stack;
   int[] tokenStack;
+  // List item events to insert (prepareList): their positions in the parser's events, and the events.
+  int[] insertAt;
+  int[] insertEvent;
   (func(FromMarkdown, int)->void)[] enter;
   (func(FromMarkdown, int)->void)[] exit;
   int[] canContainEols;
@@ -37,6 +76,8 @@ export class FromMarkdown {
     this.tree = new Tree();
     this.stack = [];
     this.tokenStack = [];
+    this.insertAt = [];
+    this.insertEvent = [];
     this.enter = [];
     this.exit = [];
     this.canContainEols = [K_EMPHASIS, K_FRAGMENT, K_HEADING, K_PARAGRAPH, K_STRONG];
@@ -126,7 +167,10 @@ export class FromMarkdown {
     this.setEnd(tail, token);
   }
 
-  // Upstream's prepareList: adds listItem events and computes spread.
+  // Upstream's prepareList: adds listItem events and computes spread. Upstream splices each event into the whole
+  // event list as it goes; here they are recorded by position in the parser's events and merged once every list
+  // is prepared. A list's events land inside that list, so a list prepared later (an outer one) walks the same
+  // events either way.
   int prepareList(int[] events, int start, int length) {
     Tokens tokens = this.tokens;
     int index = start - 1;
@@ -194,18 +238,15 @@ export class FromMarkdown {
           } else {
             tokens.endAtEndOf(listItem, token);
           }
-          int at = if (lineIndex > 0) { lineIndex } else { index };
-          splice(events, at, 0, [exitEvent(listItem)]);
-          index++;
-          end++;
+          this.insertAt.push(if (lineIndex > 0) { lineIndex } else { index });
+          this.insertEvent.push(exitEvent(listItem));
         }
         if (type == tListItemPrefix) {
           int item = tokens.create(tListItem, tokens.tokenizer[token]);
           tokens.startAtStartOf(item, token);
           listItem = item;
-          splice(events, index, 0, [enterEvent(item)]);
-          index++;
-          end++;
+          this.insertAt.push(index);
+          this.insertEvent.push(enterEvent(item));
           firstBlankLineIndex = -1;
           atMarker = true;
         }
@@ -219,7 +260,8 @@ export class FromMarkdown {
     return end;
   }
 
-  int compile(int[] events) {
+  int compile(int[] parsed) {
+    int[] events = parsed;
     Tree tree = this.tree;
     tree.lineStarts = this.parser.lineStarts;
     int root = tree.create(K_ROOT, 0);
@@ -235,6 +277,20 @@ export class FromMarkdown {
           index = this.prepareList(events, listStack.pop(), index);
         }
       }
+    }
+    if (this.insertAt.length > 0) {
+      int[] insertAt = this.insertAt;
+      int[] order = byPosition(insertAt);
+      int[] merged = [];
+      int next = 0;
+      for (int position = 0; position < events.length; position++) {
+        while (next < order.length && insertAt[order[next]] == position) {
+          merged.push(this.insertEvent[order[next]]);
+          next++;
+        }
+        merged.push(events[position]);
+      }
+      events = merged;
     }
     for (int event of events) {
       int token = eventToken(event);

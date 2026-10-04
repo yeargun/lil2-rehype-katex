@@ -24,7 +24,7 @@
     "micromark/tokenizer.lil": "e3f30a934b2f2bf1a5cf3c44aaabcd2a1912523901e0112b4b1a7fd545347315",
     "micromark/types.lil": "a62f09d8047327670d88b17e101f52695ef87d92272132948da8cb45c4cc2684",
     "micromark/util.lil": "a1d8a46b0b8bcf9d5eddb168b3d20fe716f29a46128c6de8bb89596c0cca02a4",
-    "mdast/from-markdown.lil": "afde716ba6d08266b099fb9dd67a4a6df8690ffe1cd604b77b0f80c24768fbbf",
+    "mdast/from-markdown.lil": "512989ae656118a98b2ebecd67e3713ce3ace55322a92122fd0138b2e906b08c",
     "mdast/parse.lil": "239d92ff7ff46044067b20c539ba483d89e9824d959d7008658a293743454236",
     "mdast/tree.lil": "829f7c145942c47ed5a64ee66799c74c67524e1fb922a89ed6708551a2a9c92b",
     "hast/hast.lil": "03d3d2d68dc3d44ac20786538ed1cb693baefb3b21afbd67fa01fa7796f15480",
