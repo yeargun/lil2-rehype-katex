@@ -324,3 +324,6 @@ h1, h2 { overflow-wrap: anywhere; }
 .objective-table td.desc { white-space: normal; text-align: left; min-width: 220px; max-width: 420px; }
 .objective-table td.desc strong { display: block; color: var(--ink); }
 .objective-table td.desc small { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+
+/* The chat table's speed-up factor beside lil2's number. */
+.objective-table .factor { color: var(--muted, #6b6b6b); font-size: .85em; font-weight: 500; white-space: nowrap; }
