@@ -1,0 +1,213 @@
+{
+ "schemaVersion": 4,
+ "id": "to-hast",
+ "name": "lil2-mdast-util-to-hast",
+ "package": "@itslil/lil2-mdast-util-to-hast",
+ "title": "mdast-util-to-hast",
+ "tab": "mdast-util-to-hast",
+ "description": "mdast arena to hast arena: tags, properties and enumerated values are int ids into name tables, read only where a name must leave the program.",
+ "measuredAt": "2026-10-04T18:25:23.290Z",
+ "compiler": {
+  "revision": "90cfbad1 (branch lil2-lazy-functions)",
+  "binarySha256": "a08ebaa7beb8687a5d54fbdf2859ed423f78cdee74327c84173bde45ef82ac00"
+ },
+ "upstream": {
+  "package": "mdast-util-to-hast",
+  "version": "13.2.1",
+  "external": [],
+  "sharedExports": [],
+  "excludedExports": []
+ },
+ "scope": "Browser builds on both sides: lil2’s `browser` condition and upstream bundled by esbuild 0.28.1 with the browser condition (`export {fromMarkdown} from 'mdast-util-from-markdown'; export {toHast} from 'mdast-util-to-hast'`).",
+ "machine": {
+  "cpu": "AMD EPYC 7763 64-Core Processor",
+  "logicalCpus": 8,
+  "memoryGiB": 15.6,
+  "os": "Linux 7.0.0-1014-azure",
+  "node": "v20.19.0"
+ },
+ "objectives": [
+  {
+   "objective": "raw",
+   "metric": "raw",
+   "lilscript": {
+    "artifact": "https://yeargun.github.io/lil2-mdast-util-to-hast/files/lil2/raw/to-hast.js",
+    "sizes": {
+     "raw": 58540,
+     "gzip9": 19983,
+     "brotli11": 17496
+    },
+    "sha256": "d2c8182e1bf37a3a5ed3e404b609e2ebf337f8c231990dc070719584ade6e041",
+    "buildSeconds": 13.92,
+    "config": "lilscript.objectives.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "https://yeargun.github.io/lil2-mdast-util-to-hast/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 73664,
+     "gzip9": 20315,
+     "brotli11": 18178
+    },
+    "sha256": "481f52901dcb94dd12105d202c6a72c9a6e1d769604d1240909572a2b869c15f",
+    "buildSeconds": 0.865
+   },
+   "ratio": 0.7946894005212859
+  },
+  {
+   "objective": "gzip",
+   "metric": "gzip9",
+   "lilscript": {
+    "artifact": "https://yeargun.github.io/lil2-mdast-util-to-hast/files/lil2/gzip/to-hast.js",
+    "sizes": {
+     "raw": 59479,
+     "gzip9": 19061,
+     "brotli11": 16667
+    },
+    "sha256": "387c5a06b5327e08049ac722be75bef14eb424e34293c0a6779b1d66dab36579",
+    "buildSeconds": 13.92,
+    "config": "lilscript.objectives.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "https://yeargun.github.io/lil2-mdast-util-to-hast/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 73664,
+     "gzip9": 20315,
+     "brotli11": 18178
+    },
+    "sha256": "481f52901dcb94dd12105d202c6a72c9a6e1d769604d1240909572a2b869c15f",
+    "buildSeconds": 0.865
+   },
+   "ratio": 0.9382722126507507
+  },
+  {
+   "objective": "brotli",
+   "metric": "brotli11",
+   "lilscript": {
+    "artifact": "https://yeargun.github.io/lil2-mdast-util-to-hast/files/lil2/brotli/to-hast.js",
+    "sizes": {
+     "raw": 59881,
+     "gzip9": 19104,
+     "brotli11": 16719
+    },
+    "sha256": "597dc656e2d2381ad713c092de453d037e79db2ce0249cdfcf967bf88fa1fcfb",
+    "buildSeconds": 4.8,
+    "config": "lilscript.browser.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "https://yeargun.github.io/lil2-mdast-util-to-hast/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 73664,
+     "gzip9": 20315,
+     "brotli11": 18178
+    },
+    "sha256": "481f52901dcb94dd12105d202c6a72c9a6e1d769604d1240909572a2b869c15f",
+    "buildSeconds": 0.865
+   },
+   "ratio": 0.9197381450104521
+  }
+ ],
+ "minifiers": [
+  {
+   "tool": "Terser",
+   "version": "5.51.2",
+   "sizes": {
+    "raw": 73664,
+    "gzip9": 20315,
+    "brotli11": 18178
+   },
+   "buildSeconds": 0.865,
+   "sha256": "481f52901dcb94dd12105d202c6a72c9a6e1d769604d1240909572a2b869c15f",
+   "artifact": "https://yeargun.github.io/lil2-mdast-util-to-hast/files/upstream/Terser.mjs"
+  },
+  {
+   "tool": "esbuild",
+   "version": "0.28.1",
+   "sizes": {
+    "raw": 75604,
+    "gzip9": 21906,
+    "brotli11": 19584
+   },
+   "buildSeconds": 0.046,
+   "sha256": "e66dbfe57b0d863cef42f5e7e06ddb21880149c18f7ab84c29791ef11f04aed1",
+   "artifact": "https://yeargun.github.io/lil2-mdast-util-to-hast/files/upstream/esbuild.mjs"
+  },
+  {
+   "tool": "Oxc",
+   "version": "vite 8.2.1",
+   "sizes": {
+    "raw": 73869,
+    "gzip9": 20739,
+    "brotli11": 18555
+   },
+   "buildSeconds": 0.046,
+   "sha256": "7a21fd4d58afcc33e5430260a29d55e3aaa57e1aeae319e7102ee8e3793493e3",
+   "artifact": "https://yeargun.github.io/lil2-mdast-util-to-hast/files/upstream/Oxc.mjs"
+  }
+ ],
+ "wins": 3,
+ "cells": 3,
+ "tests": "Same hast as upstream (tags, properties in order, data, positions) on 736 documents, safe and dangerous, in Node and in Chromium and Firefox.",
+ "api": "markdownToHast(value, allowDangerousHtml) → hast columns",
+ "linksBase": "https://yeargun.github.io/lil2-mdast-util-to-hast/family/to-hast/",
+ "speed": {
+  "Chromium 151.0.7922.34": {
+   "docs": {
+    "chat": {
+     "upstreamMs": 0.7090909101746299,
+     "lil2Ms": 0.29374999925494194
+    },
+    "readme": {
+     "upstreamMs": 16.450000002980232,
+     "lil2Ms": 6.5999999940395355
+    },
+    "large": {
+     "upstreamMs": 167.5,
+     "lil2Ms": 69.59999999403954
+    }
+   },
+   "cold": {
+    "upstream": {
+     "importMs": 5,
+     "firstRunMs": 11.5
+    },
+    "lil2": {
+     "importMs": 5.100000023841858,
+     "firstRunMs": 10.900000005960464
+    }
+   }
+  },
+  "Firefox 153.0": {
+   "docs": {
+    "chat": {
+     "upstreamMs": 1.1111111111111112,
+     "lil2Ms": 0.5833333333333334
+    },
+    "readme": {
+     "upstreamMs": 33,
+     "lil2Ms": 12.75
+    },
+    "large": {
+     "upstreamMs": 375,
+     "lil2Ms": 125
+    }
+   },
+   "cold": {
+    "upstream": {
+     "importMs": 10,
+     "firstRunMs": 13
+    },
+    "lil2": {
+     "importMs": 11,
+     "firstRunMs": 11
+    }
+   }
+  }
+ },
+ "page": "https://yeargun.github.io/lil2-mdast-util-to-hast/"
+}

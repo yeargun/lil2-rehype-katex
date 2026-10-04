@@ -1,0 +1,5 @@
+{
+ "label": "rehype-katex on this text",
+ "upstream": "./lab/upstream-run.mjs",
+ "lil2": "./lab/lil2/run.mjs"
+}

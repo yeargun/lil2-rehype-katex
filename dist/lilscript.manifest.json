@@ -1,0 +1,507 @@
+{
+  "version": 3,
+  "codec": "brotli",
+  "outputs": [
+    {
+      "mode": "single",
+      "format": "esm",
+      "entries": [
+        {
+          "name": "index",
+          "file": "rehype-katex.js",
+          "dynamic": false,
+          "closure": [
+            "rehype-katex.js"
+          ],
+          "row": 29561,
+          "raw_row": 97484
+        }
+      ],
+      "files": [
+        {
+          "file": "rehype-katex.js",
+          "role": "entry",
+          "source_map_for": null,
+          "label": [
+            "index"
+          ],
+          "modules": [
+            "index.lil",
+            "micromark/parse.lil",
+            "micromark/codes.lil",
+            "micromark/preprocess.lil",
+            "micromark/tokenizer.lil",
+            "micromark/initialize.lil",
+            "micromark/types.lil",
+            "micromark/factories.lil",
+            "micromark/constructs/basic.lil",
+            "micromark/util.lil",
+            "micromark/entities.lil",
+            "micromark/constructs/flow.lil",
+            "micromark/subtokenize.lil",
+            "micromark/constructs/containers.lil",
+            "micromark/constructs/html-flow.lil",
+            "micromark/constructs/inline.lil",
+            "micromark/constructs/attention.lil",
+            "micromark/constructs/label.lil",
+            "mdast/parse.lil",
+            "mdast/from-markdown.lil",
+            "mdast/tree.lil",
+            "hast/hast.lil",
+            "hast/properties.lil",
+            "hast/to-hast.lil",
+            "math/math.lil",
+            "math/syntax.lil",
+            "math/ids.lil",
+            "math/mdast-math.lil",
+            "math/hast-math.lil",
+            "katex/rehype-katex.lil",
+            "katex/parse.lil",
+            "katex/vocabulary.lil",
+            "module-33"
+          ],
+          "anchored": true,
+          "imports": [],
+          "dynamic_imports": [],
+          "bytes": 97484,
+          "codec_bytes": 29561,
+          "sha256": "08c961c339c0783ce5c7da2848db5fb02e9e255434e3218b2bd7fd1502b70fb6"
+        }
+      ],
+      "side_effects": [
+        "rehype-katex.js"
+      ],
+      "codec_total": 29561,
+      "rows_total": 29561,
+      "setters": 0,
+      "output": "primary",
+      "codec": "brotli",
+      "codec_settings": {
+        "brotli": {
+          "quality": 11,
+          "window": 22,
+          "mode": "generic"
+        },
+        "gzip": {
+          "level": 9,
+          "window": 15
+        }
+      },
+      "policy_fingerprint": [
+        165,
+        197,
+        87,
+        120,
+        240,
+        150,
+        85,
+        21,
+        158,
+        23,
+        156,
+        1,
+        108,
+        124,
+        29,
+        14,
+        237,
+        26,
+        27,
+        126,
+        127,
+        113,
+        40,
+        97,
+        56,
+        76,
+        237,
+        123,
+        6,
+        222,
+        112,
+        230
+      ]
+    }
+  ],
+  "source_sha256": "61b2bd4a5a95f3a94502226386284e6a9779943b253ff0f9e43a10b91cab8626",
+  "inputs": {
+    "root": 0,
+    "entries": [
+      {
+        "name": "index",
+        "module": 0
+      }
+    ],
+    "modules": [
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/index.lil",
+        "bytes": 1597,
+        "sha256": "66844b49592dd933240f65f09a1a1292ef809c601448c7f03761aa419d4082cd",
+        "dependencies": [
+          1,
+          2,
+          19,
+          21,
+          20,
+          22,
+          24,
+          25,
+          30
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/katex/host.lil",
+        "bytes": 265,
+        "sha256": "1ad8fd7f665dd4c4672285c1eb525f5ba38d292cc2c317b415dbafe01dc52539",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/micromark/parse.lil",
+        "bytes": 6369,
+        "sha256": "f6eed67dfd8d602382c6c32fa048e9ce9838265f9fba54c10eb9abe91c819a53",
+        "dependencies": [
+          3,
+          4,
+          5,
+          6,
+          13,
+          9,
+          12,
+          14,
+          15,
+          16,
+          17,
+          18
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/micromark/codes.lil",
+        "bytes": 2704,
+        "sha256": "d019f2dd7ebbd8d7ff3890d107825a79063336b0834903f71d2b00ac4e89f027",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/micromark/preprocess.lil",
+        "bytes": 1296,
+        "sha256": "e023cdadf51326535197f3b564a6af05a8f3f9f9abdfda451e02d63c429885dc",
+        "dependencies": [
+          3
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/micromark/tokenizer.lil",
+        "bytes": 27616,
+        "sha256": "e3f30a934b2f2bf1a5cf3c44aaabcd2a1912523901e0112b4b1a7fd545347315",
+        "dependencies": [
+          3
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/micromark/initialize.lil",
+        "bytes": 14484,
+        "sha256": "18e3479f9f2f8cd13d4a78e6242b3ed22d378ad8cca4c55c9f55758895447ddc",
+        "dependencies": [
+          3,
+          7,
+          5,
+          8,
+          9,
+          12
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/micromark/types.lil",
+        "bytes": 4716,
+        "sha256": "a62f09d8047327670d88b17e101f52695ef87d92272132948da8cb45c4cc2684",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/micromark/factories.lil",
+        "bytes": 7493,
+        "sha256": "ca80919c1bc134c2439a6fd447008f190ad049daa1a19a1585ca0fc212baef53",
+        "dependencies": [
+          3,
+          7,
+          5
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/micromark/constructs/basic.lil",
+        "bytes": 18657,
+        "sha256": "90d2260e03411b06192989279bb224231cf16d55db8a269b75f95b2592a74465",
+        "dependencies": [
+          3,
+          7,
+          5,
+          8,
+          10
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/micromark/util.lil",
+        "bytes": 7500,
+        "sha256": "31fc6b4da3bfb47f56f61a6178856a14220e79ef4f87ba2eb04381edca67c6b1",
+        "dependencies": [
+          3,
+          11
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/micromark/entities.lil",
+        "bytes": 37348,
+        "sha256": "9c608b959bfcf493e0b34182022531fc250df41de8a8605e952a92a741fcf025",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/micromark/constructs/flow.lil",
+        "bytes": 12928,
+        "sha256": "6c3d121f9677445a37cff98576bf1d7c99a6c9b1a2c4348fac4fc9b5bed29978",
+        "dependencies": [
+          3,
+          7,
+          5,
+          8,
+          13,
+          10
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/micromark/subtokenize.lil",
+        "bytes": 8599,
+        "sha256": "3a5a1210a80bf8fde847542ea9d778175f8874c9dc648304d75ddbd2e2b333bc",
+        "dependencies": [
+          3,
+          7,
+          5
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/micromark/constructs/containers.lil",
+        "bytes": 7975,
+        "sha256": "b1a01f6045fc39679eb701fd44d0577136344abac44857f5ca9de3c7b69566aa",
+        "dependencies": [
+          3,
+          7,
+          5,
+          8,
+          9
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/micromark/constructs/html-flow.lil",
+        "bytes": 14542,
+        "sha256": "772de9988dd106ecc960233adb95f633bb3841866d8bcd412dd510d7b17382d1",
+        "dependencies": [
+          3,
+          7,
+          5,
+          9
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/micromark/constructs/inline.lil",
+        "bytes": 12774,
+        "sha256": "ad733d89f0e585abe7c2684a35bd9fbe30cbe48098f39f1b424c1a4485e6b647",
+        "dependencies": [
+          3,
+          7,
+          5,
+          8
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/micromark/constructs/attention.lil",
+        "bytes": 5570,
+        "sha256": "47636b6ef5cb02ec9ea475303dc38d2534c239273aaa86b9a5ff160fd4059bd4",
+        "dependencies": [
+          3,
+          7,
+          5
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/micromark/constructs/label.lil",
+        "bytes": 10432,
+        "sha256": "ed1ab40d3bdbb64dafa396786b5547283a3b5617790c1ca0e6272a7220a3b25a",
+        "dependencies": [
+          3,
+          7,
+          5,
+          8,
+          10
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/mdast/parse.lil",
+        "bytes": 1208,
+        "sha256": "239d92ff7ff46044067b20c539ba483d89e9824d959d7008658a293743454236",
+        "dependencies": [
+          2,
+          5,
+          20,
+          21
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/mdast/from-markdown.lil",
+        "bytes": 24077,
+        "sha256": "512989ae656118a98b2ebecd67e3713ce3ace55322a92122fd0138b2e906b08c",
+        "dependencies": [
+          3,
+          7,
+          5,
+          10,
+          21
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/mdast/tree.lil",
+        "bytes": 6642,
+        "sha256": "829f7c145942c47ed5a64ee66799c74c67524e1fb922a89ed6708551a2a9c92b",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/hast/hast.lil",
+        "bytes": 10279,
+        "sha256": "03d3d2d68dc3d44ac20786538ed1cb693baefb3b21afbd67fa01fa7796f15480",
+        "dependencies": [
+          23
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/hast/properties.lil",
+        "bytes": 1110,
+        "sha256": "3a21343b334a9c26a4c63eb50bd8a3c529430d88c1c32fe7cb42c7eb33720f8d",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/hast/to-hast.lil",
+        "bytes": 24183,
+        "sha256": "5d566b1a9be7f52df534306e1de613c2e73815a6d17016954e56c320e5ce06a7",
+        "dependencies": [
+          21,
+          10,
+          22
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/math/math.lil",
+        "bytes": 854,
+        "sha256": "329715e874a578acd9edc71e7aabeabff26324ee67fb1a0c8376b8eb4cb6ac87",
+        "dependencies": [
+          2,
+          20,
+          24,
+          26,
+          28,
+          29
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/math/syntax.lil",
+        "bytes": 9988,
+        "sha256": "3029e15575e790df35a87d00486f2d6cbccfd447702c8ae897026c8cb87f9861",
+        "dependencies": [
+          3,
+          7,
+          5,
+          8,
+          2,
+          27
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/math/ids.lil",
+        "bytes": 1060,
+        "sha256": "025443d06e5701b01d6262b08b0ae288baa3af3d3bb7a3f3e27fdadaa249e427",
+        "dependencies": [
+          7,
+          5,
+          21
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/math/mdast-math.lil",
+        "bytes": 2026,
+        "sha256": "8a50097f97e3243dfbb782dac2ec89cfa6a024d18ae856bea11dd1323f4a67b0",
+        "dependencies": [
+          20,
+          21,
+          27
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/math/hast-math.lil",
+        "bytes": 1476,
+        "sha256": "6d6c15c6452305fe9d9e93a2f2ab7dccb1eb9de2df5f7911b088a8b7aeb1433c",
+        "dependencies": [
+          21,
+          22,
+          24,
+          27
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/katex/rehype-katex.lil",
+        "bytes": 4691,
+        "sha256": "ee4c7627afd7d52b4f2b7d8c81d7b1572034874e8f2d690c84cba4df91313e70",
+        "dependencies": [
+          1,
+          22,
+          31
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/katex/parse.lil",
+        "bytes": 14925,
+        "sha256": "ebfd8e2695701a201f265cd24e9f8d9be3e4e5cecbcf80c30fe1ce4a0cda0770",
+        "dependencies": [
+          10,
+          22,
+          32
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/lil2/prod-snapshots/lil2-rehype-katex/src/katex/vocabulary.lil",
+        "bytes": 5176,
+        "sha256": "1d37a11d73d40888e4a1a98b8064c4bc134bb116021b330c2e53cf60751aef61",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      }
+    ],
+    "host_modules": [],
+    "host_reserved": []
+  }
+}

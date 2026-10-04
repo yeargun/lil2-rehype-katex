@@ -1,0 +1,55 @@
+{
+ "home": "katex",
+ "modules": [
+  {
+   "id": "katex",
+   "tab": "rehype-katex",
+   "page": "https://yeargun.github.io/lil2-rehype-katex/"
+  },
+  {
+   "id": "micromark",
+   "tab": "micromark",
+   "page": "https://yeargun.github.io/lil2-micromark/"
+  },
+  {
+   "id": "from-markdown",
+   "tab": "mdast-util-from-markdown",
+   "page": "https://yeargun.github.io/lil2-mdast-util-from-markdown/"
+  },
+  {
+   "id": "to-hast",
+   "tab": "mdast-util-to-hast",
+   "page": "https://yeargun.github.io/lil2-mdast-util-to-hast/"
+  },
+  {
+   "id": "gfm",
+   "tab": "remark-gfm",
+   "page": "https://yeargun.github.io/lil2-remark-gfm/"
+  },
+  {
+   "id": "math",
+   "tab": "remark-math",
+   "page": "https://yeargun.github.io/lil2-remark-math/"
+  },
+  {
+   "id": "breaks",
+   "tab": "remark-breaks",
+   "page": "https://yeargun.github.io/lil2-remark-breaks/"
+  },
+  {
+   "id": "react-markdown",
+   "tab": "react-markdown",
+   "page": "https://yeargun.github.io/lil2-react-markdown/"
+  },
+  {
+   "id": "react-markdown-gfm",
+   "tab": "react-markdown + gfm",
+   "page": "https://yeargun.github.io/lil2-react-markdown/"
+  },
+  {
+   "id": "react-markdown-full",
+   "tab": "react-markdown + gfm, math, KaTeX, breaks",
+   "page": "https://yeargun.github.io/lil2-react-markdown/"
+  }
+ ]
+}

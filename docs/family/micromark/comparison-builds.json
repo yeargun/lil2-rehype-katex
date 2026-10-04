@@ -1,0 +1,18 @@
+{
+ "compiler": {
+  "path": "lilscript-lazyfn",
+  "revision": "90cfbad1",
+  "binarySha256": "a08ebaa7beb8687a5d54fbdf2859ed423f78cdee74327c84173bde45ef82ac00"
+ },
+ "lilscript": {
+  "brotli": "lilscript --config lilscript.browser.toml --target js-module --mode production --cache off --jobs 1",
+  "rawAndGzip": "lilscript --config lilscript.objectives.toml --target js-module --mode production --cache off --jobs 1 (one compile writes both)"
+ },
+ "upstream": {
+  "bundle": "esbuild 0.28.1: bundle, esm, platform browser, conditions browser+production, external []",
+  "terser": "Terser 5.51.2: module, compress passes 3, toplevel mangle",
+  "esbuild": "esbuild 0.28.1 minify",
+  "oxc": "Oxc through vite 8.2.1"
+ },
+ "timing": "Upstream lanes: bundling plus the minifier, one warm run. lil2: the whole compilation on one thread with caches off, from the build logs."
+}

@@ -1,0 +1,205 @@
+{
+ "schemaVersion": 4,
+ "id": "gfm",
+ "name": "lil2-remark-gfm",
+ "package": "@itslil/lil2-remark-gfm",
+ "title": "remark-gfm",
+ "tab": "remark-gfm",
+ "description": "GitHub Flavored Markdown on the flat pipeline: autolink literals, footnotes, strikethrough, tables and task lists, with int token types, construct ids, identifiers and alignments.",
+ "measuredAt": "2026-10-04T18:25:25.166Z",
+ "compiler": {
+  "revision": "90cfbad1 (branch lil2-lazy-functions)",
+  "binarySha256": "a08ebaa7beb8687a5d54fbdf2859ed423f78cdee74327c84173bde45ef82ac00"
+ },
+ "upstream": {
+  "package": "remark-gfm",
+  "version": "4.0.1",
+  "external": [],
+  "sharedExports": [],
+  "excludedExports": []
+ },
+ "scope": "Browser builds on both sides: lil2’s `browser` condition and upstream bundled by esbuild 0.28.1 with the browser condition (`export {fromMarkdown} from 'mdast-util-from-markdown'; export {gfm} from 'micromark-extension-gfm'; export {gfmFromMarkdown} from 'mdast-util-gfm'; export {toHast} from 'mdast-util-to-hast'`).",
+ "machine": {
+  "cpu": "AMD EPYC 7763 64-Core Processor",
+  "logicalCpus": 8,
+  "memoryGiB": 15.6,
+  "os": "Linux 7.0.0-1014-azure",
+  "node": "v20.19.0"
+ },
+ "objectives": [
+  {
+   "objective": "raw",
+   "metric": "raw",
+   "lilscript": {
+    "artifact": "https://yeargun.github.io/lil2-remark-gfm/files/lil2/raw/remark-gfm.js",
+    "sizes": {
+     "raw": 74981,
+     "gzip9": 25422,
+     "brotli11": 22032
+    },
+    "sha256": "e4da56f153c49e2724a18944d242b1451dd4fd1a4b7da32da787113d2f2176a9",
+    "buildSeconds": 18.86,
+    "config": "lilscript.objectives.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "https://yeargun.github.io/lil2-remark-gfm/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 95678,
+     "gzip9": 26065,
+     "brotli11": 23016
+    },
+    "sha256": "5c02366fe94f58b32fdca5eed061f8ba87ea16f1a1aa7f1b125f4fdcca5b96e2",
+    "buildSeconds": 0.939
+   },
+   "ratio": 0.7836806789439579
+  },
+  {
+   "objective": "gzip",
+   "metric": "gzip9",
+   "lilscript": {
+    "artifact": "https://yeargun.github.io/lil2-remark-gfm/files/lil2/gzip/remark-gfm.js",
+    "sizes": {
+     "raw": 76914,
+     "gzip9": 24071,
+     "brotli11": 21051
+    },
+    "sha256": "25655adda83b861f034ee58d9eae6e6993f6472b6d7f68cbe67ed202e4634ab3",
+    "buildSeconds": 18.86,
+    "config": "lilscript.objectives.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "https://yeargun.github.io/lil2-remark-gfm/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 95678,
+     "gzip9": 26065,
+     "brotli11": 23016
+    },
+    "sha256": "5c02366fe94f58b32fdca5eed061f8ba87ea16f1a1aa7f1b125f4fdcca5b96e2",
+    "buildSeconds": 0.939
+   },
+   "ratio": 0.923498944945329
+  },
+  {
+   "objective": "brotli",
+   "metric": "brotli11",
+   "lilscript": {
+    "artifact": "https://yeargun.github.io/lil2-remark-gfm/files/lil2/brotli/remark-gfm.js",
+    "sizes": {
+     "raw": 77567,
+     "gzip9": 24150,
+     "brotli11": 21028
+    },
+    "sha256": "3318eea66735c3ece81bd9096d4c743ffb9b0e27e258c985d18136c85292db72",
+    "buildSeconds": 6.41,
+    "config": "lilscript.browser.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "https://yeargun.github.io/lil2-remark-gfm/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 95678,
+     "gzip9": 26065,
+     "brotli11": 23016
+    },
+    "sha256": "5c02366fe94f58b32fdca5eed061f8ba87ea16f1a1aa7f1b125f4fdcca5b96e2",
+    "buildSeconds": 0.939
+   },
+   "ratio": 0.9136253041362531
+  }
+ ],
+ "minifiers": [
+  {
+   "tool": "Terser",
+   "version": "5.51.2",
+   "sizes": {
+    "raw": 95678,
+    "gzip9": 26065,
+    "brotli11": 23016
+   },
+   "buildSeconds": 0.939,
+   "sha256": "5c02366fe94f58b32fdca5eed061f8ba87ea16f1a1aa7f1b125f4fdcca5b96e2",
+   "artifact": "https://yeargun.github.io/lil2-remark-gfm/files/upstream/Terser.mjs"
+  },
+  {
+   "tool": "esbuild",
+   "version": "0.28.1",
+   "sizes": {
+    "raw": 98155,
+    "gzip9": 28143,
+    "brotli11": 24862
+   },
+   "buildSeconds": 0.07,
+   "sha256": "0903020fa55a8efc38882395ecc7e95b7cfc61340c538b6fcade0a89a5946555",
+   "artifact": "https://yeargun.github.io/lil2-remark-gfm/files/upstream/esbuild.mjs"
+  },
+  {
+   "tool": "Oxc",
+   "version": "vite 8.2.1",
+   "sizes": {
+    "raw": 96112,
+    "gzip9": 26624,
+    "brotli11": 23455
+   },
+   "buildSeconds": 0.06,
+   "sha256": "951a294b5272505c31cf7892e70930af13dd5d4410f47520b753f6a0c97ad417",
+   "artifact": "https://yeargun.github.io/lil2-remark-gfm/files/upstream/Oxc.mjs"
+  }
+ ],
+ "wins": 3,
+ "cells": 3,
+ "tests": "Same mdast and hast as upstream on 1,453 documents (the whole GFM spec, cmark-gfm’s extension tests, edge cases, the CommonMark corpus), in Node and in Chromium and Firefox.",
+ "api": "fromMarkdown(value, singleTilde) · markdownToHast(value, allowDangerousHtml)",
+ "linksBase": "https://yeargun.github.io/lil2-remark-gfm/family/gfm/",
+ "speed": {
+  "Chromium 151.0.7922.34": {
+   "docs": {
+    "gfm": {
+     "upstreamMs": 13,
+     "lil2Ms": 5.450000002980232
+    },
+    "readme": {
+     "upstreamMs": 22.100000023841858,
+     "lil2Ms": 8.283333331346512
+    }
+   },
+   "cold": {
+    "upstream": {
+     "importMs": 5.799999982118607,
+     "firstRunMs": 57.099999994039536
+    },
+    "lil2": {
+     "importMs": 6.0999999940395355,
+     "firstRunMs": 45.29999998211861
+    }
+   }
+  },
+  "Firefox 153.0": {
+   "docs": {
+    "gfm": {
+     "upstreamMs": 27,
+     "lil2Ms": 12
+    },
+    "readme": {
+     "upstreamMs": 40,
+     "lil2Ms": 17
+    }
+   },
+   "cold": {
+    "upstream": {
+     "importMs": 13,
+     "firstRunMs": 75
+    },
+    "lil2": {
+     "importMs": 13,
+     "firstRunMs": 51
+    }
+   }
+  }
+ },
+ "page": "https://yeargun.github.io/lil2-remark-gfm/"
+}

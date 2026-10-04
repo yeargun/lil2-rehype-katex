@@ -1,0 +1,205 @@
+{
+ "schemaVersion": 4,
+ "id": "breaks",
+ "name": "lil2-remark-breaks",
+ "package": "@itslil/lil2-remark-breaks",
+ "title": "remark-breaks",
+ "tab": "remark-breaks",
+ "description": "Line endings in text become hard breaks, as a transform over the mdast arena.",
+ "measuredAt": "2026-10-04T18:25:30.291Z",
+ "compiler": {
+  "revision": "90cfbad1 (branch lil2-lazy-functions)",
+  "binarySha256": "a08ebaa7beb8687a5d54fbdf2859ed423f78cdee74327c84173bde45ef82ac00"
+ },
+ "upstream": {
+  "package": "remark-breaks",
+  "version": "4.0.0",
+  "external": [],
+  "sharedExports": [],
+  "excludedExports": []
+ },
+ "scope": "Browser builds on both sides: lil2’s `browser` condition and upstream bundled by esbuild 0.28.1 with the browser condition (`export {fromMarkdown} from 'mdast-util-from-markdown'; export {newlineToBreak} from 'mdast-util-newline-to-break'; export {toHast} from 'mdast-util-to-hast'`).",
+ "machine": {
+  "cpu": "AMD EPYC 7763 64-Core Processor",
+  "logicalCpus": 8,
+  "memoryGiB": 15.6,
+  "os": "Linux 7.0.0-1014-azure",
+  "node": "v20.19.0"
+ },
+ "objectives": [
+  {
+   "objective": "raw",
+   "metric": "raw",
+   "lilscript": {
+    "artifact": "https://yeargun.github.io/lil2-remark-breaks/files/lil2/raw/remark-breaks.js",
+    "sizes": {
+     "raw": 59016,
+     "gzip9": 20204,
+     "brotli11": 17714
+    },
+    "sha256": "f64eb0bbf1b31c24ad48f07f8d51fe0294535f267953b7f22310d975dba78dda",
+    "buildSeconds": 13.95,
+    "config": "lilscript.objectives.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "https://yeargun.github.io/lil2-remark-breaks/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 75302,
+     "gzip9": 20862,
+     "brotli11": 18684
+    },
+    "sha256": "43e5abaf27341d968b702a72e6b947991cfffcf0dbf00f35c9d6f76cf4ec97c2",
+    "buildSeconds": 0.804
+   },
+   "ratio": 0.7837242038724072
+  },
+  {
+   "objective": "gzip",
+   "metric": "gzip9",
+   "lilscript": {
+    "artifact": "https://yeargun.github.io/lil2-remark-breaks/files/lil2/gzip/remark-breaks.js",
+    "sizes": {
+     "raw": 60316,
+     "gzip9": 19337,
+     "brotli11": 16900
+    },
+    "sha256": "3a3bd9bbb60d44451e1c230afd9ed76f8d85c6a2810ba2fb0d31243e5c7b92a7",
+    "buildSeconds": 13.95,
+    "config": "lilscript.objectives.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "https://yeargun.github.io/lil2-remark-breaks/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 75302,
+     "gzip9": 20862,
+     "brotli11": 18684
+    },
+    "sha256": "43e5abaf27341d968b702a72e6b947991cfffcf0dbf00f35c9d6f76cf4ec97c2",
+    "buildSeconds": 0.804
+   },
+   "ratio": 0.9269005847953217
+  },
+  {
+   "objective": "brotli",
+   "metric": "brotli11",
+   "lilscript": {
+    "artifact": "https://yeargun.github.io/lil2-remark-breaks/files/lil2/brotli/remark-breaks.js",
+    "sizes": {
+     "raw": 60776,
+     "gzip9": 19397,
+     "brotli11": 16921
+    },
+    "sha256": "a3b0a49ba357a1567ba2d44c4b3f94797001a53c1a3bcae66da33db97b76f65e",
+    "buildSeconds": 4.73,
+    "config": "lilscript.browser.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "https://yeargun.github.io/lil2-remark-breaks/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 75302,
+     "gzip9": 20862,
+     "brotli11": 18684
+    },
+    "sha256": "43e5abaf27341d968b702a72e6b947991cfffcf0dbf00f35c9d6f76cf4ec97c2",
+    "buildSeconds": 0.804
+   },
+   "ratio": 0.9056411903232713
+  }
+ ],
+ "minifiers": [
+  {
+   "tool": "Terser",
+   "version": "5.51.2",
+   "sizes": {
+    "raw": 75302,
+    "gzip9": 20862,
+    "brotli11": 18684
+   },
+   "buildSeconds": 0.804,
+   "sha256": "43e5abaf27341d968b702a72e6b947991cfffcf0dbf00f35c9d6f76cf4ec97c2",
+   "artifact": "https://yeargun.github.io/lil2-remark-breaks/files/upstream/Terser.mjs"
+  },
+  {
+   "tool": "esbuild",
+   "version": "0.28.1",
+   "sizes": {
+    "raw": 77161,
+    "gzip9": 22489,
+    "brotli11": 20140
+   },
+   "buildSeconds": 0.04,
+   "sha256": "0298c7943c57901655e3b37cae6523df49508b8d6f1b9d82d332c14bfe98c97d",
+   "artifact": "https://yeargun.github.io/lil2-remark-breaks/files/upstream/esbuild.mjs"
+  },
+  {
+   "tool": "Oxc",
+   "version": "vite 8.2.1",
+   "sizes": {
+    "raw": 75378,
+    "gzip9": 21237,
+    "brotli11": 19042
+   },
+   "buildSeconds": 0.033,
+   "sha256": "1aa14b0467e33091eb48c5847d1c9f8b84e53a04f4e10056e7d21f60ee068c08",
+   "artifact": "https://yeargun.github.io/lil2-remark-breaks/files/upstream/Oxc.mjs"
+  }
+ ],
+ "wins": 3,
+ "cells": 3,
+ "tests": "Same mdast and hast as upstream on line-ending edge cases and the CommonMark corpus, in Node and in Chromium and Firefox.",
+ "api": "fromMarkdown(value) · markdownToHast(value, allowDangerousHtml)",
+ "linksBase": "https://yeargun.github.io/lil2-remark-breaks/family/breaks/",
+ "speed": {
+  "Chromium 151.0.7922.34": {
+   "docs": {
+    "chat": {
+     "upstreamMs": 0.7000000004967054,
+     "lil2Ms": 0.2705882349435021
+    },
+    "readme": {
+     "upstreamMs": 15.800000011920929,
+     "lil2Ms": 6.366666664679845
+    }
+   },
+   "cold": {
+    "upstream": {
+     "importMs": 5,
+     "firstRunMs": 12.099999994039536
+    },
+    "lil2": {
+     "importMs": 5.0999999940395355,
+     "firstRunMs": 10.800000011920929
+    }
+   }
+  },
+  "Firefox 153.0": {
+   "docs": {
+    "chat": {
+     "upstreamMs": 1.125,
+     "lil2Ms": 0.5384615384615384
+    },
+    "readme": {
+     "upstreamMs": 34,
+     "lil2Ms": 12.5
+    }
+   },
+   "cold": {
+    "upstream": {
+     "importMs": 12,
+     "firstRunMs": 16
+    },
+    "lil2": {
+     "importMs": 12,
+     "firstRunMs": 11
+    }
+   }
+  }
+ },
+ "page": "https://yeargun.github.io/lil2-remark-breaks/"
+}

@@ -1,0 +1,213 @@
+{
+ "schemaVersion": 4,
+ "id": "from-markdown",
+ "name": "lil2-mdast-util-from-markdown",
+ "package": "@itslil/lil2-mdast-util-from-markdown",
+ "title": "mdast-util-from-markdown",
+ "tab": "mdast-util-from-markdown",
+ "description": "Markdown to an mdast arena: node kinds, links and offsets in parallel arrays, identifiers interned to ints, the whole tree returned as positional columns.",
+ "measuredAt": "2026-10-04T18:25:21.694Z",
+ "compiler": {
+  "revision": "90cfbad1 (branch lil2-lazy-functions)",
+  "binarySha256": "a08ebaa7beb8687a5d54fbdf2859ed423f78cdee74327c84173bde45ef82ac00"
+ },
+ "upstream": {
+  "package": "mdast-util-from-markdown",
+  "version": "2.0.3",
+  "external": [],
+  "sharedExports": [],
+  "excludedExports": []
+ },
+ "scope": "Browser builds on both sides: lil2’s `browser` condition and upstream bundled by esbuild 0.28.1 with the browser condition (`export {fromMarkdown} from 'mdast-util-from-markdown'`).",
+ "machine": {
+  "cpu": "AMD EPYC 7763 64-Core Processor",
+  "logicalCpus": 8,
+  "memoryGiB": 15.6,
+  "os": "Linux 7.0.0-1014-azure",
+  "node": "v20.19.0"
+ },
+ "objectives": [
+  {
+   "objective": "raw",
+   "metric": "raw",
+   "lilscript": {
+    "artifact": "https://yeargun.github.io/lil2-mdast-util-from-markdown/files/lil2/raw/from-markdown.js",
+    "sizes": {
+     "raw": 48453,
+     "gzip9": 16445,
+     "brotli11": 14464
+    },
+    "sha256": "0015bbe0b213cf34ad47e150aea876791373ae679d114eafbc325a625781ce84",
+    "buildSeconds": 10.32,
+    "config": "lilscript.objectives.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "https://yeargun.github.io/lil2-mdast-util-from-markdown/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 56955,
+     "gzip9": 15491,
+     "brotli11": 13831
+    },
+    "sha256": "e43862a9f065aa4e39679df97f3368c918164963789e309677bebf69a89151e1",
+    "buildSeconds": 0.668
+   },
+   "ratio": 0.8507242559915723
+  },
+  {
+   "objective": "gzip",
+   "metric": "gzip9",
+   "lilscript": {
+    "artifact": "https://yeargun.github.io/lil2-mdast-util-from-markdown/files/lil2/gzip/from-markdown.js",
+    "sizes": {
+     "raw": 49904,
+     "gzip9": 15613,
+     "brotli11": 13733
+    },
+    "sha256": "5f972e4da910446b510928a33f9dd96bae2e99b5660077570d2847e30927ab0a",
+    "buildSeconds": 10.32,
+    "config": "lilscript.objectives.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "https://yeargun.github.io/lil2-mdast-util-from-markdown/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 56955,
+     "gzip9": 15491,
+     "brotli11": 13831
+    },
+    "sha256": "e43862a9f065aa4e39679df97f3368c918164963789e309677bebf69a89151e1",
+    "buildSeconds": 0.668
+   },
+   "ratio": 1.0078755406364985
+  },
+  {
+   "objective": "brotli",
+   "metric": "brotli11",
+   "lilscript": {
+    "artifact": "https://yeargun.github.io/lil2-mdast-util-from-markdown/files/lil2/brotli/from-markdown.js",
+    "sizes": {
+     "raw": 49944,
+     "gzip9": 15654,
+     "brotli11": 13748
+    },
+    "sha256": "a6b4e140551de3d4f0f879d154168e4feddec782d3b0d77aa00de889c5a2700f",
+    "buildSeconds": 3.52,
+    "config": "lilscript.browser.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "https://yeargun.github.io/lil2-mdast-util-from-markdown/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 56955,
+     "gzip9": 15491,
+     "brotli11": 13831
+    },
+    "sha256": "e43862a9f065aa4e39679df97f3368c918164963789e309677bebf69a89151e1",
+    "buildSeconds": 0.668
+   },
+   "ratio": 0.9939989877810715
+  }
+ ],
+ "minifiers": [
+  {
+   "tool": "Terser",
+   "version": "5.51.2",
+   "sizes": {
+    "raw": 56955,
+    "gzip9": 15491,
+    "brotli11": 13831
+   },
+   "buildSeconds": 0.668,
+   "sha256": "e43862a9f065aa4e39679df97f3368c918164963789e309677bebf69a89151e1",
+   "artifact": "https://yeargun.github.io/lil2-mdast-util-from-markdown/files/upstream/Terser.mjs"
+  },
+  {
+   "tool": "esbuild",
+   "version": "0.28.1",
+   "sizes": {
+    "raw": 58323,
+    "gzip9": 16603,
+    "brotli11": 14779
+   },
+   "buildSeconds": 0.041,
+   "sha256": "f0a82b79a243b5ce755a1654a02d41ee47e5be3c4e47d71a3ace909d2be3cbff",
+   "artifact": "https://yeargun.github.io/lil2-mdast-util-from-markdown/files/upstream/esbuild.mjs"
+  },
+  {
+   "tool": "Oxc",
+   "version": "vite 8.2.1",
+   "sizes": {
+    "raw": 56981,
+    "gzip9": 15649,
+    "brotli11": 13974
+   },
+   "buildSeconds": 0.035,
+   "sha256": "9b00cd310ea2dba77b3b4e0a9f3a391db9de3433d422c5a01a17cec1e920f044",
+   "artifact": "https://yeargun.github.io/lil2-mdast-util-from-markdown/files/upstream/Oxc.mjs"
+  }
+ ],
+ "wins": 2,
+ "cells": 3,
+ "tests": "Same mdast as upstream, every node, field, null and position, on 736 documents, in Node and in Chromium and Firefox.",
+ "api": "fromMarkdown(value) → [kind, flags, parent, firstChild, nextSibling, …] columns",
+ "linksBase": "https://yeargun.github.io/lil2-mdast-util-from-markdown/family/from-markdown/",
+ "speed": {
+  "Chromium 151.0.7922.34": {
+   "docs": {
+    "chat": {
+     "upstreamMs": 0.6000000004257474,
+     "lil2Ms": 0.26875000074505806
+    },
+    "readme": {
+     "upstreamMs": 14.900000005960464,
+     "lil2Ms": 6.233333334326744
+    },
+    "large": {
+     "upstreamMs": 155.75,
+     "lil2Ms": 65.09999999403954
+    }
+   },
+   "cold": {
+    "upstream": {
+     "importMs": 5,
+     "firstRunMs": 11.599999994039536
+    },
+    "lil2": {
+     "importMs": 5.300000011920929,
+     "firstRunMs": 10.799999982118607
+    }
+   }
+  },
+  "Firefox 153.0": {
+   "docs": {
+    "chat": {
+     "upstreamMs": 1,
+     "lil2Ms": 0.5384615384615384
+    },
+    "readme": {
+     "upstreamMs": 31,
+     "lil2Ms": 13
+    },
+    "large": {
+     "upstreamMs": 379,
+     "lil2Ms": 124
+    }
+   },
+   "cold": {
+    "upstream": {
+     "importMs": 9,
+     "firstRunMs": 12
+    },
+    "lil2": {
+     "importMs": 9,
+     "firstRunMs": 10
+    }
+   }
+  }
+ },
+ "page": "https://yeargun.github.io/lil2-mdast-util-from-markdown/"
+}

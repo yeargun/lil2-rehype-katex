@@ -1,0 +1,205 @@
+{
+ "schemaVersion": 4,
+ "id": "math",
+ "name": "lil2-remark-math",
+ "package": "@itslil/lil2-remark-math",
+ "title": "remark-math",
+ "tab": "remark-math",
+ "description": "Math in markdown, `$…$` and `$$` fences, on the flat pipeline; the elements carry int flags for rehype-katex instead of class names.",
+ "measuredAt": "2026-10-04T18:25:26.776Z",
+ "compiler": {
+  "revision": "90cfbad1 (branch lil2-lazy-functions)",
+  "binarySha256": "a08ebaa7beb8687a5d54fbdf2859ed423f78cdee74327c84173bde45ef82ac00"
+ },
+ "upstream": {
+  "package": "remark-math",
+  "version": "6.0.0",
+  "external": [],
+  "sharedExports": [],
+  "excludedExports": []
+ },
+ "scope": "Browser builds on both sides: lil2’s `browser` condition and upstream bundled by esbuild 0.28.1 with the browser condition (`export {fromMarkdown} from 'mdast-util-from-markdown'; export {math} from 'micromark-extension-math'; export {mathFromMarkdown} from 'mdast-util-math'; export {toHast} from 'mdast-util-to-hast'`).",
+ "machine": {
+  "cpu": "AMD EPYC 7763 64-Core Processor",
+  "logicalCpus": 8,
+  "memoryGiB": 15.6,
+  "os": "Linux 7.0.0-1014-azure",
+  "node": "v20.19.0"
+ },
+ "objectives": [
+  {
+   "objective": "raw",
+   "metric": "raw",
+   "lilscript": {
+    "artifact": "https://yeargun.github.io/lil2-remark-math/files/lil2/raw/remark-math.js",
+    "sizes": {
+     "raw": 61851,
+     "gzip9": 20911,
+     "brotli11": 18276
+    },
+    "sha256": "38d028499c0e5a61eaa273d533f92b311ec6219566f9713b9e5bf2bf3c885221",
+    "buildSeconds": 15.33,
+    "config": "lilscript.objectives.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "https://yeargun.github.io/lil2-remark-math/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 78011,
+     "gzip9": 21286,
+     "brotli11": 18881
+    },
+    "sha256": "76e08ebce39b93bffb90d1ddd019cc7b60f762c2cec46e8099700f237dcb2e07",
+    "buildSeconds": 0.81
+   },
+   "ratio": 0.7928497263206471
+  },
+  {
+   "objective": "gzip",
+   "metric": "gzip9",
+   "lilscript": {
+    "artifact": "https://yeargun.github.io/lil2-remark-math/files/lil2/gzip/remark-math.js",
+    "sizes": {
+     "raw": 63281,
+     "gzip9": 19994,
+     "brotli11": 17482
+    },
+    "sha256": "5d00bc6a16ff4769e7ae2a2cc6ef7321ec676a75b4d54eba7db9342af928bf66",
+    "buildSeconds": 15.33,
+    "config": "lilscript.objectives.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "https://yeargun.github.io/lil2-remark-math/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 78011,
+     "gzip9": 21286,
+     "brotli11": 18881
+    },
+    "sha256": "76e08ebce39b93bffb90d1ddd019cc7b60f762c2cec46e8099700f237dcb2e07",
+    "buildSeconds": 0.81
+   },
+   "ratio": 0.9393028281499577
+  },
+  {
+   "objective": "brotli",
+   "metric": "brotli11",
+   "lilscript": {
+    "artifact": "https://yeargun.github.io/lil2-remark-math/files/lil2/brotli/remark-math.js",
+    "sizes": {
+     "raw": 63430,
+     "gzip9": 20074,
+     "brotli11": 17509
+    },
+    "sha256": "09c2013478ab2dbe58422748c93fc45f968a55f93ef50a745b4d9802ccfd8d58",
+    "buildSeconds": 4.96,
+    "config": "lilscript.browser.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "https://yeargun.github.io/lil2-remark-math/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 78011,
+     "gzip9": 21286,
+     "brotli11": 18881
+    },
+    "sha256": "76e08ebce39b93bffb90d1ddd019cc7b60f762c2cec46e8099700f237dcb2e07",
+    "buildSeconds": 0.81
+   },
+   "ratio": 0.9273343572903977
+  }
+ ],
+ "minifiers": [
+  {
+   "tool": "Terser",
+   "version": "5.51.2",
+   "sizes": {
+    "raw": 78011,
+    "gzip9": 21286,
+    "brotli11": 18881
+   },
+   "buildSeconds": 0.81,
+   "sha256": "76e08ebce39b93bffb90d1ddd019cc7b60f762c2cec46e8099700f237dcb2e07",
+   "artifact": "https://yeargun.github.io/lil2-remark-math/files/upstream/Terser.mjs"
+  },
+  {
+   "tool": "esbuild",
+   "version": "0.28.1",
+   "sizes": {
+    "raw": 80026,
+    "gzip9": 23038,
+    "brotli11": 20411
+   },
+   "buildSeconds": 0.069,
+   "sha256": "19595faa6232db1eae35c7e868b343bddd0a50b8f61ec9e2717ed6883be21ddb",
+   "artifact": "https://yeargun.github.io/lil2-remark-math/files/upstream/esbuild.mjs"
+  },
+  {
+   "tool": "Oxc",
+   "version": "vite 8.2.1",
+   "sizes": {
+    "raw": 78242,
+    "gzip9": 21680,
+    "brotli11": 19255
+   },
+   "buildSeconds": 0.062,
+   "sha256": "36d286c870f262f2032fb17034854a29b49ccaede1a26ab4be7e5b9cc9c487e0",
+   "artifact": "https://yeargun.github.io/lil2-remark-math/files/upstream/Oxc.mjs"
+  }
+ ],
+ "wins": 3,
+ "cells": 3,
+ "tests": "Same mdast and hast as upstream on about 840 documents (math edge cases, a math document, the CommonMark corpus), in Node and in Chromium and Firefox.",
+ "api": "fromMarkdown(value, singleDollarTextMath) · markdownToHast(value, allowDangerousHtml)",
+ "linksBase": "https://yeargun.github.io/lil2-remark-math/family/math/",
+ "speed": {
+  "Chromium 151.0.7922.34": {
+   "docs": {
+    "math": {
+     "upstreamMs": 0.8454545451836153,
+     "lil2Ms": 0.3624999988824129
+    },
+    "chat": {
+     "upstreamMs": 0.6633333335320155,
+     "lil2Ms": 0.283333334657881
+    }
+   },
+   "cold": {
+    "upstream": {
+     "importMs": 5,
+     "firstRunMs": 10.600000023841858
+    },
+    "lil2": {
+     "importMs": 5.199999988079071,
+     "firstRunMs": 9.900000005960464
+    }
+   }
+  },
+  "Firefox 153.0": {
+   "docs": {
+    "math": {
+     "upstreamMs": 1.5,
+     "lil2Ms": 0.8181818181818182
+    },
+    "chat": {
+     "upstreamMs": 1.1818181818181819,
+     "lil2Ms": 0.6
+    }
+   },
+   "cold": {
+    "upstream": {
+     "importMs": 11,
+     "firstRunMs": 14
+    },
+    "lil2": {
+     "importMs": 12,
+     "firstRunMs": 11
+    }
+   }
+  }
+ },
+ "page": "https://yeargun.github.io/lil2-remark-math/"
+}

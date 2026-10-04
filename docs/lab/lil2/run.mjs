@@ -1,0 +1,1 @@
+import * as lib from './rehype-katex.js'; import {fromColumns} from '../rows-hast.mjs'; export const run = md => lib.markdownToHast(md, undefined); export const view = md => JSON.stringify(fromColumns(run(md), lib.propNames, lib.keywordNames))

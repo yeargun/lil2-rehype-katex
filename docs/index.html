@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="lil2-rehype-katex: rehype-katex@7.0.1 rewritten in typed LilScript on the flat lil2 stack — raw, gzip and Brotli objective builds against minified upstream, speed in Chromium and Firefox, a live lab." name="description"/>
+<meta content="#c2255c" name="theme-color"/>
+<title>lil2-rehype-katex — rehype-katex@7.0.1, typed and flat</title>
+<link href="./styles.css" rel="stylesheet"/>
+<link href="./objective-comparison.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css" rel="stylesheet"/>
+<script src="./app.js" type="module"></script>
+</head>
+<body>
+<div aria-hidden="true" class="progress"></div>
+<header class="nav shell">
+<a aria-label="lil2-rehype-katex home" class="wordmark" href="#top"><span class="mark">kx</span><span>lil2-rehype-katex</span></a>
+<nav aria-label="Main navigation">
+<a href="#stack">stack</a>
+<a href="#lab">playground</a>
+<a href="#evidence">size</a>
+<a href="#speed">speed</a>
+<a href="#compiler">build time</a>
+<a href="https://github.com/yeargun/lil2-rehype-katex">GitHub ↗</a>
+</nav>
+</header>
+<main id="top">
+<section class="hero shell">
+<div class="hero-copy">
+<p class="eyebrow"><span class="live-dot"></span> rehype-katex@7.0.1 · lil2 family · @itslil/lil2-rehype-katex</p>
+<h1>rehype-katex,<br/><em>flat.</em></h1>
+<p class="lede">Every math element rendered by KaTeX, and KaTeX’s HTML read into the flat hast arena: tag ids, property ids and value kinds generated from property-information.</p>
+<div class="install-row"><code>npm install @itslil/lil2-rehype-katex</code><button class="copy" data-copy="npm install @itslil/lil2-rehype-katex" type="button">copy</button></div>
+<div class="hero-actions">
+<a class="button primary" href="#lab">Playground</a>
+<a class="button secondary" href="https://github.com/yeargun/lil2-rehype-katex">GitHub ↗</a>
+</div>
+</div>
+<div aria-label="Size and speed" class="scoreboard">
+<div class="score-main">
+<span class="score-label" id="hero-label">lil2 browser build versus minified upstream · Brotli-11</span>
+<strong id="hero-ratio">25.9%<span>smaller</span></strong>
+<p id="hero-bytes">26,829 B upstream (Terser) → 19,886 B lil2</p>
+</div>
+<div class="score-grid">
+<div><strong id="hero-gzip">24.6% smaller</strong><span>gzip-9 objective build</span></div>
+<div><strong id="hero-raw">34.0% smaller</strong><span>raw objective build</span></div>
+<div><strong>0.83× the time</strong><span>of upstream’s per call, Chromium 151.0.7922.34 (geometric mean)</span></div>
+<div><strong>3/3</strong><span>size cells smaller</span></div>
+</div>
+<p class="score-note">Raw, gzip and Brotli each use a separate LilScript compilation targeting that objective; upstream is the smallest of Terser, esbuild and Oxc on the same API bundled for the browser.</p>
+</div>
+</section>
+<section aria-label="The family" class="ticker">
+<div>lil2-micromark <span>✦</span> lil2-mdast-util-from-markdown <span>✦</span> lil2-mdast-util-to-hast <span>✦</span> lil2-remark-gfm <span>✦</span> lil2-remark-math <span>✦</span> lil2-rehype-katex <span>✦</span> lil2-remark-breaks <span>✦</span> lil2-react-markdown <span>✦</span> lil2-react-markdown + gfm <span>✦</span> lil2-react-markdown + gfm, math, KaTeX, breaks <span>✦</span> lil2-micromark <span>✦</span> lil2-mdast-util-from-markdown <span>✦</span> lil2-mdast-util-to-hast <span>✦</span> lil2-remark-gfm <span>✦</span> lil2-remark-math <span>✦</span> lil2-rehype-katex <span>✦</span> lil2-remark-breaks <span>✦</span> lil2-react-markdown <span>✦</span> lil2-react-markdown + gfm <span>✦</span> lil2-react-markdown + gfm, math, KaTeX, breaks</div>
+</section>
+<section class="shell compare" id="stack">
+<div class="section-heading">
+<div>
+<p class="eyebrow">The lil2 family</p>
+<h2>This package,<br/>then the stack.</h2>
+</div>
+<p>Every layer of the react-markdown stack, rewritten bottom to top with ints for every id and enum and flat
+arrays for every tree. Each tab is one package: its size against minified upstream for each objective, its speed
+in real browsers, and the checks that its output equals upstream’s.</p>
+</div>
+<div aria-label="Packages" class="stack-tabs" id="stack-tabs" role="tablist"><button type="button" role="tab" data-id="katex" aria-selected="true">rehype-katex</button><button type="button" role="tab" data-id="micromark" aria-selected="false">micromark</button><button type="button" role="tab" data-id="from-markdown" aria-selected="false">mdast-util-from-markdown</button><button type="button" role="tab" data-id="to-hast" aria-selected="false">mdast-util-to-hast</button><button type="button" role="tab" data-id="gfm" aria-selected="false">remark-gfm</button><button type="button" role="tab" data-id="math" aria-selected="false">remark-math</button><button type="button" role="tab" data-id="breaks" aria-selected="false">remark-breaks</button><button type="button" role="tab" data-id="react-markdown" aria-selected="false">react-markdown</button><button type="button" role="tab" data-id="react-markdown-gfm" aria-selected="false">react-markdown + gfm</button><button type="button" role="tab" data-id="react-markdown-full" aria-selected="false">react-markdown + gfm, math, KaTeX, breaks</button></div>
+<div id="stack-detail"><div class="stack-card" style="margin-top:56px">
+    <div>
+      <h3>lil2-rehype-katex</h3>
+      <p>Every math element rendered by KaTeX, and KaTeX’s HTML read into the flat hast arena: tag ids, property ids and value kinds generated from property-information.</p>
+      <div class="stack-meta"><a href="https://github.com/yeargun/lil2-rehype-katex">GitHub ↗</a><a href="https://yeargun.github.io/lil2-rehype-katex/">page ↗</a><a href="./family/katex/comparison.json">comparison.json ↗</a></div>
+    </div>
+    <div class="stack-detail-grid">
+      <span>Rewrites</span><code>rehype-katex@7.0.1</code>
+      <span>API</span><code>markdownToHast(value, katexOptions) → hast columns</code>
+      <span>Behaviour</span><strong class="good">Same hast as upstream under eight KaTeX setting sets on 182 formulas as text, display and fenced math, in Node (tokenizer) and in Chromium and Firefox (the document parses).</strong>
+      <span>Cells</span><strong>3 of 3 smaller</strong>
+    </div>
+  </div></div>
+</section>
+<section class="lab shell" id="lab">
+<div class="section-heading">
+<div>
+<p class="eyebrow">Both builds, in this page</p>
+<h2>Live<br/>lab.</h2>
+</div>
+<p>Left is markdown. Right is <code>lil2-react-markdown/full</code> rendering it as you type. <strong>Race</strong> times
+upstream rehype-katex against lil2 on the current text, both loaded here.</p>
+</div>
+<div class="playground">
+<div class="play-toolbar">
+<label><input type="checkbox" data-plugin="gfm" checked/> GFM</label>
+<label><input type="checkbox" data-plugin="math" checked/> math</label>
+<label><input type="checkbox" data-plugin="katex" checked/> KaTeX</label>
+<label><input type="checkbox" data-plugin="breaks"/> breaks</label>
+<span id="render-ms"></span>
+<button id="race" type="button">Race rehype-katex</button>
+<span id="race-out"></span>
+</div>
+<div class="samples"><button type="button" data-sample="chat">chat</button><button type="button" data-sample="gfm">GFM</button><button type="button" data-sample="math">math</button><button type="button" data-sample="readme">readme</button></div>
+<div class="play-grid" id="lab-root">
+<textarea id="lab-input" spellcheck="false" aria-label="Markdown"># Notes on Fourier analysis
+
+The Fourier transform of an integrable function $f$ is
+$\hat f(\xi) = \int_{-\infty}^{\infty} f(x)\, e^{-2\pi i x \xi}\, dx$, and when
+$\hat f$ is integrable too the inversion formula holds:
+
+$$
+f(x) = \int_{-\infty}^{\infty} \hat f(\xi)\, e^{2\pi i x \xi}\, d\xi .
+$$
+
+## Plancherel
+
+For $f \in L^1 \cap L^2$ we have $\|f\|_2 = \|\hat f\|_2$, so the transform
+extends to a unitary map on $L^2(\mathbb{R})$.
+
+$$
+\int_{\mathbb{R}} |f(x)|^2 \, dx = \int_{\mathbb{R}} |\hat f(\xi)|^2 \, d\xi
+$$
+
+## Convolution
+
+If $h = f * g$ with $(f * g)(x) = \int f(y) g(x - y)\, dy$, then
+$\hat h = \hat f \cdot \hat g$. The Gaussian $g(x) = e^{-\pi x^2}$ is its own
+transform, $\hat g = g$.
+
+| Function | Transform |
+| --- | --- |
+| $e^{-\pi x^2}$ | $e^{-\pi \xi^2}$ |
+| $\mathbf{1}_{[-1/2, 1/2]}(x)$ | $\operatorname{sinc}(\xi) = \frac{\sin \pi \xi}{\pi \xi}$ |
+| $f(x - a)$ | $e^{-2\pi i a \xi} \hat f(\xi)$ |
+| $f'(x)$ | $2\pi i \xi\, \hat f(\xi)$ |
+
+## Poisson summation
+
+For a Schwartz function $f$:
+
+$$
+\sum_{n \in \mathbb{Z}} f(n) = \sum_{k \in \mathbb{Z}} \hat f(k)
+$$
+
+Applied to $f(x) = e^{-\pi t x^2}$ this gives the theta identity
+$\theta(t) = t^{-1/2}\, \theta(1/t)$ where $\theta(t) = \sum_n e^{-\pi n^2 t}$.
+
+## A matrix
+
+$$
+\begin{pmatrix} a &amp; b \\ c &amp; d \end{pmatrix}^{-1}
+= \frac{1}{ad - bc} \begin{pmatrix} d &amp; -b \\ -c &amp; a \end{pmatrix},
+\qquad ad - bc \neq 0 .
+$$
+
+- [x] inversion
+- [x] Plancherel
+- [ ] uncertainty principle: $\Delta x\, \Delta \xi \ge \frac{1}{4\pi}$
+</textarea>
+<div class="play-preview" id="lab-output"></div>
+</div>
+<p class="lab-note">The output is rendered by the shipped browser build; the race runs each side for 400 ms after a warm-up.</p>
+</div>
+</section>
+<section class="objective-section shell" id="evidence"><p class="eyebrow">Browser build · minified upstream</p><h2>Three objectives.<br/>Measured separately.</h2><div id="compression-comparison"><div class="objective-cards"><article class="objective-card"><span>Raw</span><strong>69,460 B</strong><p>34% smaller than original</p><small>Terser · 105,268 B</small></article><article class="objective-card"><span>gzip-9</span><strong>22,895 B</strong><p>24.6% smaller than original</p><small>Terser · 30,350 B</small></article><article class="objective-card"><span>Brotli-11</span><strong>19,886 B</strong><p>25.9% smaller than original</p><small>Terser · 26,829 B</small></article></div>
+    <div class="table-wrap objective-table"><table><caption>Current LilScript versus minified original</caption><thead><tr><th>Compiler objective</th><th>LilScript</th><th>Original minified</th><th>Original minifier</th><th>Difference</th></tr></thead><tbody><tr data-objective="raw"><th scope="row">Raw</th><td><a href="./family/katex/files/lil2/raw/rehype-katex.js">69,460 B</a></td><td><a href="./family/katex/files/upstream/Terser.mjs">105,268 B</a></td><td>Terser</td><td>34% smaller</td></tr><tr data-objective="gzip"><th scope="row">gzip-9</th><td><a href="./family/katex/files/lil2/gzip/rehype-katex.js">22,895 B</a></td><td><a href="./family/katex/files/upstream/Terser.mjs">30,350 B</a></td><td>Terser</td><td>24.6% smaller</td></tr><tr data-objective="brotli"><th scope="row">Brotli-11</th><td><a href="./family/katex/files/lil2/brotli/rehype-katex.js">19,886 B</a></td><td><a href="./family/katex/files/upstream/Terser.mjs">26,829 B</a></td><td>Terser</td><td>25.9% smaller</td></tr></tbody></table></div>
+    <p class="objective-note">Each LilScript row comes from a separate compilation targeting that row’s objective. Raw is uncompressed JavaScript; gzip uses level 9; Brotli uses quality 11 and window 22. For each metric, the original is the smallest result among the minifiers below. No JavaScript minifier runs after LilScript.</p>
+    <details class="objective-details"><summary>Every artifact, measured with all three codecs</summary><div class="table-wrap objective-table"><table><thead><tr><th>Artifact</th><th>Raw</th><th>gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr><th><a href="./family/katex/files/lil2/raw/rehype-katex.js">LilScript · Raw objective</a></th><td>69,460 B</td><td>24,113 B</td><td>20,898 B</td></tr><tr><th><a href="./family/katex/files/lil2/gzip/rehype-katex.js">LilScript · gzip-9 objective</a></th><td>72,831 B</td><td>22,895 B</td><td>19,821 B</td></tr><tr><th><a href="./family/katex/files/lil2/brotli/rehype-katex.js">LilScript · Brotli-11 objective</a></th><td>72,580 B</td><td>22,989 B</td><td>19,886 B</td></tr><tr><th><a href="./family/katex/files/upstream/Terser.mjs">Original · Terser 5.51.2</a></th><td>105,268 B</td><td>30,350 B</td><td>26,829 B</td></tr><tr><th><a href="./family/katex/files/upstream/esbuild.mjs">Original · esbuild 0.28.1</a></th><td>107,551 B</td><td>32,257 B</td><td>28,619 B</td></tr><tr><th><a href="./family/katex/files/upstream/Oxc.mjs">Original · Oxc vite 8.2.1</a></th><td>105,338 B</td><td>30,796 B</td><td>27,390 B</td></tr></tbody></table></div></details>
+    <p class="objective-note">Browser builds on both sides: lil2’s `browser` condition and upstream bundled by esbuild 0.28.1 with the browser condition (`export {fromMarkdown} from &#39;mdast-util-from-markdown&#39;; export {math} from &#39;micromark-extension-math&#39;; export {mathFromMarkdown} from &#39;mdast-util-math&#39;; export {toHast} from &#39;mdast-util-to-hast&#39;; export {default as rehypeKatex} from &#39;rehype-katex&#39;`). Upstream: <strong>rehype-katex@7.0.1</strong>. External dependencies excluded from sizes: katex. CSS, fonts, type declarations and source maps are outside these JavaScript sizes.</p>
+    
+    <p class="objective-note"><a href="./family/katex/comparison.json">Measurements, hashes and settings ↗</a> · <a href="./family/katex/comparison-builds.json">Commands and build receipts ↗</a></p></div></section>
+<section class="objective-section shell" id="speed"><p class="eyebrow">Real browsers · identical output first</p><h2>Speed.</h2><div id="speed-root"><div class="table-wrap objective-table"><table><caption>Chromium 151.0.7922.34  · median per call, identical output checked first</caption><thead><tr><th>Document</th><th>Upstream</th><th>lil2</th><th>Time</th></tr></thead><tbody><tr><th scope="row">math</th><td>9.450 ms</td><td>7.825 ms</td><td class="verdict win"><strong>0.83×</strong></td></tr><tr><th scope="row">load (import)</th><td>30.0 ms</td><td>23.1 ms</td><td class="verdict win"><strong>0.77×</strong></td></tr><tr><th scope="row">first call, cold</th><td>40.5 ms</td><td>41.3 ms</td><td class="verdict even"><strong>1.02×</strong></td></tr></tbody></table></div><div class="table-wrap objective-table"><table><caption>Firefox 153.0  · median per call, identical output checked first</caption><thead><tr><th>Document</th><th>Upstream</th><th>lil2</th><th>Time</th></tr></thead><tbody><tr><th scope="row">math</th><td>15.000 ms</td><td>13.000 ms</td><td class="verdict win"><strong>0.87×</strong></td></tr><tr><th scope="row">load (import)</th><td>47.0 ms</td><td>42.0 ms</td><td class="verdict win"><strong>0.89×</strong></td></tr><tr><th scope="row">first call, cold</th><td>48.0 ms</td><td>43.0 ms</td><td class="verdict win"><strong>0.90×</strong></td></tr></tbody></table></div><p class="objective-note">Playwright, one fresh browser context per lane; lanes interleave and alternate order every round. Upstream is the same API bundled from npm for the browser; lil2 is the shipped browser build. Load is the module import after the file is fetched; first call is the first document, cold.</p></div></section>
+<section class="objective-section shell" id="compiler"><p class="eyebrow">Same machine · sequential builds</p><h2>Build time.</h2><div id="objective-build-times"><div class="table-wrap objective-table"><table><caption>Build wall time on the same machine</caption><thead><tr><th>Output objective</th><th>LilScript compilation</th><th>Original bundling + minification</th><th>Original minifier</th></tr></thead><tbody><tr><th scope="row">Raw</th><td>18.13 s</td><td>0.957 s</td><td>Terser</td></tr><tr><th scope="row">gzip-9</th><td>18.13 s</td><td>0.957 s</td><td>Terser</td></tr><tr><th scope="row">Brotli-11</th><td>5.54 s</td><td>0.957 s</td><td>Terser</td></tr></tbody></table></div>
+    <p class="objective-note">One fresh output build per objective and minifier, run sequentially. LilScript compilation includes optimization and objective scoring with persistent caches disabled and one worker. Original time includes Node startup, esbuild bundling of installed upstream ESM, and the named minifier. It excludes building the upstream package from its original TypeScript sources. Dependency installation, tests and final file compression are excluded on both sides. These are observations on a shared machine, not a build-speed guarantee.</p>
+    <p class="objective-note">AMD EPYC 7763 64-Core Processor · 8 logical CPUs · 15.6 GiB RAM · Linux 7.0.0-1014-azure · Node v20.19.0. Measured 2026-10-04. <a href="./family/katex/comparison-builds.json">Exact commands and compiler identity ↗</a></p></div></section>
+<section class="closing shell">
+<p class="eyebrow">Install</p>
+<h2>Typed, flat,<br/>same output.</h2>
+<div class="install-row large"><code>npm install @itslil/lil2-rehype-katex</code><button class="copy" data-copy="npm install @itslil/lil2-rehype-katex" type="button">copy</button></div>
+</section>
+</main>
+<footer class="shell">
+<span>@itslil/lil2-rehype-katex · MIT</span>
+<span>rehype-katex@7.0.1, rewritten in LilScript</span>
+<a href="https://github.com/yeargun/lil2-rehype-katex">source ↗</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,232 @@
+{
+ "schemaVersion": 4,
+ "id": "react-markdown-gfm",
+ "name": "lil2-react-markdown",
+ "package": "@itslil/lil2-react-markdown",
+ "title": "react-markdown + gfm",
+ "tab": "react-markdown + gfm",
+ "description": "The gfm flavor: react-markdown with remark-gfm compiled in, applied with plugins={[GFM]}.",
+ "measuredAt": "2026-10-04T18:25:35.190Z",
+ "compiler": {
+  "revision": "90cfbad1 (branch lil2-lazy-functions)",
+  "binarySha256": "a08ebaa7beb8687a5d54fbdf2859ed423f78cdee74327c84173bde45ef82ac00"
+ },
+ "upstream": {
+  "package": "react-markdown + remark-gfm",
+  "version": "10.1.0 + 4.0.1",
+  "external": [
+   "react",
+   "react/jsx-runtime"
+  ],
+  "sharedExports": [],
+  "excludedExports": []
+ },
+ "scope": "Browser builds on both sides: lil2’s `browser` condition and upstream bundled by esbuild 0.28.1 with the browser condition (`export {default as Markdown, defaultUrlTransform} from 'react-markdown'; export {default as remarkGfm} from 'remark-gfm'`).",
+ "machine": {
+  "cpu": "AMD EPYC 7763 64-Core Processor",
+  "logicalCpus": 8,
+  "memoryGiB": 15.6,
+  "os": "Linux 7.0.0-1014-azure",
+  "node": "v20.19.0"
+ },
+ "objectives": [
+  {
+   "objective": "raw",
+   "metric": "raw",
+   "lilscript": {
+    "artifact": "https://yeargun.github.io/lil2-react-markdown/files/lil2/raw/gfm.js",
+    "sizes": {
+     "raw": 83077,
+     "gzip9": 29030,
+     "brotli11": 25025
+    },
+    "sha256": "765bcec9ca0f7c162a0661cc3175eb8b98592b3d21f726fb4b894996abf0bd00",
+    "buildSeconds": 33.75,
+    "config": "lilscript.objectives.toml"
+   },
+   "original": {
+    "tool": "Oxc",
+    "version": "vite 8.2.1",
+    "artifact": "https://yeargun.github.io/lil2-react-markdown/files/upstream/Oxc.mjs",
+    "sizes": {
+     "raw": 156074,
+     "gzip9": 46127,
+     "brotli11": 40458
+    },
+    "sha256": "be9bf304bde88fa572d7949e6ac0caf46d8536df2004ffe0569e8c9227afe67e",
+    "buildSeconds": 0.062
+   },
+   "ratio": 0.5322923741302202
+  },
+  {
+   "objective": "gzip",
+   "metric": "gzip9",
+   "lilscript": {
+    "artifact": "https://yeargun.github.io/lil2-react-markdown/files/lil2/gzip/gfm.js",
+    "sizes": {
+     "raw": 84534,
+     "gzip9": 27257,
+     "brotli11": 23620
+    },
+    "sha256": "4f13b218173e1ebb29246444b5df2e5bda8ebb43e632f2e4a7acbce92a2b6f89",
+    "buildSeconds": 33.75,
+    "config": "lilscript.objectives.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "https://yeargun.github.io/lil2-react-markdown/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 156149,
+     "gzip9": 45497,
+     "brotli11": 39846
+    },
+    "sha256": "087463877b4151c43907cc98c1e6f713cb6809564c2ecb5be50d59e05e2918da",
+    "buildSeconds": 1.281
+   },
+   "ratio": 0.5990944457876344
+  },
+  {
+   "objective": "brotli",
+   "metric": "brotli11",
+   "lilscript": {
+    "artifact": "https://yeargun.github.io/lil2-react-markdown/files/lil2/brotli/gfm.js",
+    "sizes": {
+     "raw": 84648,
+     "gzip9": 27292,
+     "brotli11": 23607
+    },
+    "sha256": "383ad7451ce3d8cc7f352a5be2cd40db041b398b7a2db1609ea957e6426a1fef",
+    "buildSeconds": 11.27,
+    "config": "lilscript.browser.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "https://yeargun.github.io/lil2-react-markdown/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 156149,
+     "gzip9": 45497,
+     "brotli11": 39846
+    },
+    "sha256": "087463877b4151c43907cc98c1e6f713cb6809564c2ecb5be50d59e05e2918da",
+    "buildSeconds": 1.281
+   },
+   "ratio": 0.5924559554283994
+  }
+ ],
+ "minifiers": [
+  {
+   "tool": "Terser",
+   "version": "5.51.2",
+   "sizes": {
+    "raw": 156149,
+    "gzip9": 45497,
+    "brotli11": 39846
+   },
+   "buildSeconds": 1.281,
+   "sha256": "087463877b4151c43907cc98c1e6f713cb6809564c2ecb5be50d59e05e2918da",
+   "artifact": "https://yeargun.github.io/lil2-react-markdown/files/upstream/Terser.mjs"
+  },
+  {
+   "tool": "esbuild",
+   "version": "0.28.1",
+   "sizes": {
+    "raw": 159214,
+    "gzip9": 48164,
+    "brotli11": 42328
+   },
+   "buildSeconds": 0.071,
+   "sha256": "af7d001925f26226342b525b7be578cb7eccf6f6fb993bf17b8fbb1df1fb1e32",
+   "artifact": "https://yeargun.github.io/lil2-react-markdown/files/upstream/esbuild.mjs"
+  },
+  {
+   "tool": "Oxc",
+   "version": "vite 8.2.1",
+   "sizes": {
+    "raw": 156074,
+    "gzip9": 46127,
+    "brotli11": 40458
+   },
+   "buildSeconds": 0.062,
+   "sha256": "be9bf304bde88fa572d7949e6ac0caf46d8536df2004ffe0569e8c9227afe67e",
+   "artifact": "https://yeargun.github.io/lil2-react-markdown/files/upstream/Oxc.mjs"
+  }
+ ],
+ "wins": 3,
+ "cells": 3,
+ "tests": "Same rendered HTML as react-markdown + remark-gfm on 1,453 documents under seven option sets.",
+ "api": "<Markdown plugins={[GFM]}>{markdown}</Markdown>",
+ "linksBase": "https://yeargun.github.io/lil2-react-markdown/family/react-markdown-gfm/",
+ "speed": {
+  "Chromium 151.0.7922.34": {
+   "docs": {
+    "chat": {
+     "upstreamMs": 0.8166666676600774,
+     "lil2Ms": 0.3125
+    },
+    "readme": {
+     "upstreamMs": 16.30000001192093,
+     "lil2Ms": 7.800000001986821
+    },
+    "large": {
+     "upstreamMs": 179.90000000596046,
+     "lil2Ms": 70.2000000178814
+    },
+    "gfm": {
+     "upstreamMs": 15.650000005960464,
+     "lil2Ms": 5.5
+    },
+    "math": {
+     "upstreamMs": 17.75,
+     "lil2Ms": 9.799999997019768
+    }
+   },
+   "cold": {
+    "upstream": {
+     "importMs": 9.799999982118607,
+     "firstRunMs": 19.900000005960464
+    },
+    "lil2": {
+     "importMs": 5.4000000059604645,
+     "firstRunMs": 15.800000011920929
+    }
+   }
+  },
+  "Firefox 153.0": {
+   "docs": {
+    "chat": {
+     "upstreamMs": 1.5714285714285714,
+     "lil2Ms": 0.6666666666666666
+    },
+    "readme": {
+     "upstreamMs": 34,
+     "lil2Ms": 14
+    },
+    "large": {
+     "upstreamMs": 410,
+     "lil2Ms": 136
+    },
+    "gfm": {
+     "upstreamMs": 26,
+     "lil2Ms": 11
+    },
+    "math": {
+     "upstreamMs": 21,
+     "lil2Ms": 15
+    }
+   },
+   "cold": {
+    "upstream": {
+     "importMs": 18,
+     "firstRunMs": 15
+    },
+    "lil2": {
+     "importMs": 12,
+     "firstRunMs": 14
+    }
+   }
+  }
+ },
+ "page": "https://yeargun.github.io/lil2-react-markdown/"
+}

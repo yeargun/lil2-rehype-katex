@@ -5,7 +5,7 @@
 // Each build's wall time goes to stderr ("built <config> in <s> s").
 import {execFileSync} from 'node:child_process'
 import {existsSync} from 'node:fs'
-const compiler = process.env.LILSCRIPT_COMPILER ?? '/home/azureuser/lilscript-work/remark-fix/lilscript-8ff44f'
+const compiler = process.env.LILSCRIPT_COMPILER ?? '/home/azureuser/lilscript-work/lil2/lilscript-lazyfn'
 if (!existsSync(compiler)) throw new Error('Set LILSCRIPT_COMPILER to the pinned LilScript compiler')
 const run = (config, out, mode) => {
   const start = process.hrtime.bigint()

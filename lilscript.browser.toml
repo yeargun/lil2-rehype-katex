@@ -17,7 +17,7 @@ assume_pure_property_reads = true
 assume_unconstructed_callbacks = true
 
 [effort]
-level = 15
+level = 12
 
 [objective]
 codecs = "brotli"
@@ -31,6 +31,8 @@ pool_strings = true
 BROWSER = true
 
 [delivery]
+# Functions created at load are `function`, which engines parse on first call (V8 parses arrows at import).
+lazy_functions = true
 mode = "single"
 directory = "dist/browser"
 entry_names = "rehype-katex.js"

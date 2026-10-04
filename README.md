@@ -31,6 +31,27 @@ import {markdownToHast, propNames, keywordNames} from '@itslil/lil2-rehype-katex
 markdownToHast('Euler: $e^{i\\pi} + 1 = 0$', {output: 'html'}) // hast columns, KaTeX options as upstream
 ```
 
+## Measured (2026-10-04)
+
+The `browser` build against rehype-katex@7.0.1 bundled for the browser with esbuild and minified by Terser, esbuild and Oxc
+(the smallest shown). Each objective is its own LilScript build (effort level 12, `lazy_functions`).
+
+| | lil2 | upstream, best minifier | difference |
+|---|---:|---:|---:|
+| raw | 69,460 | 105,268 (Terser) | −34.0% |
+| gzip (9) | 22,895 | 30,350 (Terser) | −24.6% |
+| Brotli (11) | 19,886 | 26,829 (Terser) | −25.9% |
+
+Speed, upstream → lil2: math rendered by KaTeX, median per call in a fresh browser context per lane, after checking that both
+give the same output (Playwright; Chromium 151, Firefox 153; AMD EPYC 7763 64-Core Processor). Cold rows are the first import and the
+first call of a fresh page.
+
+| | Chromium | Firefox |
+|---|---:|---:|
+| math (1 KB) | 9.45 → 7.83 ms (0.83×) | 15.0 → 13.0 ms (0.87×) |
+| import, cold | 30.0 → 23.1 ms | 47.0 → 42.0 ms |
+| first call, cold | 40.5 → 41.3 ms | 48.0 → 43.0 ms |
+
 ## Behaviour
 
 `test/differential.test.mjs` renders 182 formulas (fractions, roots, accents, arrays, stretchy delimiters,

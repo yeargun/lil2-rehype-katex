@@ -1,0 +1,199 @@
+{
+ "schemaVersion": 4,
+ "id": "katex",
+ "name": "lil2-rehype-katex",
+ "package": "@itslil/lil2-rehype-katex",
+ "title": "rehype-katex",
+ "tab": "rehype-katex",
+ "description": "Every math element rendered by KaTeX, and KaTeX’s HTML read into the flat hast arena: tag ids, property ids and value kinds generated from property-information.",
+ "measuredAt": "2026-10-04T18:25:28.725Z",
+ "compiler": {
+  "revision": "90cfbad1 (branch lil2-lazy-functions)",
+  "binarySha256": "a08ebaa7beb8687a5d54fbdf2859ed423f78cdee74327c84173bde45ef82ac00"
+ },
+ "upstream": {
+  "package": "rehype-katex",
+  "version": "7.0.1",
+  "external": [
+   "katex"
+  ],
+  "sharedExports": [],
+  "excludedExports": []
+ },
+ "scope": "Browser builds on both sides: lil2’s `browser` condition and upstream bundled by esbuild 0.28.1 with the browser condition (`export {fromMarkdown} from 'mdast-util-from-markdown'; export {math} from 'micromark-extension-math'; export {mathFromMarkdown} from 'mdast-util-math'; export {toHast} from 'mdast-util-to-hast'; export {default as rehypeKatex} from 'rehype-katex'`).",
+ "machine": {
+  "cpu": "AMD EPYC 7763 64-Core Processor",
+  "logicalCpus": 8,
+  "memoryGiB": 15.6,
+  "os": "Linux 7.0.0-1014-azure",
+  "node": "v20.19.0"
+ },
+ "objectives": [
+  {
+   "objective": "raw",
+   "metric": "raw",
+   "lilscript": {
+    "artifact": "./family/katex/files/lil2/raw/rehype-katex.js",
+    "sizes": {
+     "raw": 69460,
+     "gzip9": 24113,
+     "brotli11": 20898
+    },
+    "sha256": "563f7b6a82dd10f963d67f2c2f67aee6d73b5a589e6f803963f5d0caa28a6903",
+    "buildSeconds": 18.13,
+    "config": "lilscript.objectives.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "./family/katex/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 105268,
+     "gzip9": 30350,
+     "brotli11": 26829
+    },
+    "sha256": "db860a1b4a89e96bad9377e5aee21756b6c7a20c0253d5a9db037ef46bacf1ba",
+    "buildSeconds": 0.957
+   },
+   "ratio": 0.6598396473762207
+  },
+  {
+   "objective": "gzip",
+   "metric": "gzip9",
+   "lilscript": {
+    "artifact": "./family/katex/files/lil2/gzip/rehype-katex.js",
+    "sizes": {
+     "raw": 72831,
+     "gzip9": 22895,
+     "brotli11": 19821
+    },
+    "sha256": "2991f335fd87895bbf36d34bc8fed7fc8b997cd0a8a4c58ff8d861df6b4a7ae6",
+    "buildSeconds": 18.13,
+    "config": "lilscript.objectives.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "./family/katex/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 105268,
+     "gzip9": 30350,
+     "brotli11": 26829
+    },
+    "sha256": "db860a1b4a89e96bad9377e5aee21756b6c7a20c0253d5a9db037ef46bacf1ba",
+    "buildSeconds": 0.957
+   },
+   "ratio": 0.7543657331136738
+  },
+  {
+   "objective": "brotli",
+   "metric": "brotli11",
+   "lilscript": {
+    "artifact": "./family/katex/files/lil2/brotli/rehype-katex.js",
+    "sizes": {
+     "raw": 72580,
+     "gzip9": 22989,
+     "brotli11": 19886
+    },
+    "sha256": "3ca3cabef526df6846b7b7f37674de83953cd85dac3751bb895f2ededfe9f4b8",
+    "buildSeconds": 5.54,
+    "config": "lilscript.browser.toml"
+   },
+   "original": {
+    "tool": "Terser",
+    "version": "5.51.2",
+    "artifact": "./family/katex/files/upstream/Terser.mjs",
+    "sizes": {
+     "raw": 105268,
+     "gzip9": 30350,
+     "brotli11": 26829
+    },
+    "sha256": "db860a1b4a89e96bad9377e5aee21756b6c7a20c0253d5a9db037ef46bacf1ba",
+    "buildSeconds": 0.957
+   },
+   "ratio": 0.7412128666741213
+  }
+ ],
+ "minifiers": [
+  {
+   "tool": "Terser",
+   "version": "5.51.2",
+   "sizes": {
+    "raw": 105268,
+    "gzip9": 30350,
+    "brotli11": 26829
+   },
+   "buildSeconds": 0.957,
+   "sha256": "db860a1b4a89e96bad9377e5aee21756b6c7a20c0253d5a9db037ef46bacf1ba",
+   "artifact": "./family/katex/files/upstream/Terser.mjs"
+  },
+  {
+   "tool": "esbuild",
+   "version": "0.28.1",
+   "sizes": {
+    "raw": 107551,
+    "gzip9": 32257,
+    "brotli11": 28619
+   },
+   "buildSeconds": 0.068,
+   "sha256": "b8ffa63ce75d5d64275ed98d6a0a08b22e20339a4afa8f82fc0d2367fd716dc1",
+   "artifact": "./family/katex/files/upstream/esbuild.mjs"
+  },
+  {
+   "tool": "Oxc",
+   "version": "vite 8.2.1",
+   "sizes": {
+    "raw": 105338,
+    "gzip9": 30796,
+    "brotli11": 27390
+   },
+   "buildSeconds": 0.057,
+   "sha256": "2ceeb2c10ef74f7c578aba0b38f607363e33f60c78bf8cb2d9fc9ec39f271fc1",
+   "artifact": "./family/katex/files/upstream/Oxc.mjs"
+  }
+ ],
+ "wins": 3,
+ "cells": 3,
+ "tests": "Same hast as upstream under eight KaTeX setting sets on 182 formulas as text, display and fenced math, in Node (tokenizer) and in Chromium and Firefox (the document parses).",
+ "api": "markdownToHast(value, katexOptions) → hast columns",
+ "linksBase": "./family/katex/",
+ "speed": {
+  "Chromium 151.0.7922.34": {
+   "docs": {
+    "math": {
+     "upstreamMs": 9.449999988079071,
+     "lil2Ms": 7.825000002980232
+    }
+   },
+   "cold": {
+    "upstream": {
+     "importMs": 30,
+     "firstRunMs": 40.5
+    },
+    "lil2": {
+     "importMs": 23.099999994039536,
+     "firstRunMs": 41.30000001192093
+    }
+   }
+  },
+  "Firefox 153.0": {
+   "docs": {
+    "math": {
+     "upstreamMs": 15,
+     "lil2Ms": 13
+    }
+   },
+   "cold": {
+    "upstream": {
+     "importMs": 47,
+     "firstRunMs": 48
+    },
+    "lil2": {
+     "importMs": 42,
+     "firstRunMs": 43
+    }
+   }
+  }
+ },
+ "page": "https://yeargun.github.io/lil2-rehype-katex/"
+}
