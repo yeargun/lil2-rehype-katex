@@ -1,7 +1,6 @@
 {
   "name": "@itslil/lil2-rehype-katex",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "rehype-katex, rewritten in typed LilScript: KaTeX output as an int-vocabulary hast arena, same trees",
   "type": "module",
   "license": "MIT",
@@ -10,10 +9,31 @@
     "type": "git",
     "url": "git+https://github.com/yeargun/lil2-rehype-katex.git"
   },
+  "bugs": {
+    "url": "https://github.com/yeargun/lil2-rehype-katex/issues"
+  },
   "homepage": "https://yeargun.github.io/lil2-rehype-katex/",
+  "keywords": [
+    "rehype",
+    "katex",
+    "math",
+    "tex",
+    "latex",
+    "markdown",
+    "lilscript",
+    "lil2",
+    "typed",
+    "fast"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
   "main": "./dist/rehype-katex.js",
+  "types": "./types/index.d.ts",
   "exports": {
     ".": {
+      "types": "./types/index.d.ts",
       "convex": "./dist/rehype-katex.js",
       "deno": "./dist/rehype-katex.js",
       "edge-light": "./dist/rehype-katex.js",
@@ -22,7 +42,26 @@
       "workerd": "./dist/rehype-katex.js",
       "browser": "./dist/browser/rehype-katex.js",
       "default": "./dist/rehype-katex.js"
+    },
+    "./constants": {
+      "types": "./types/constants.d.ts",
+      "convex": "./dist/constants.js",
+      "deno": "./dist/constants.js",
+      "edge-light": "./dist/constants.js",
+      "react-native": "./dist/constants.js",
+      "worker": "./dist/constants.js",
+      "workerd": "./dist/constants.js",
+      "browser": "./dist/browser/constants.js",
+      "default": "./dist/constants.js"
     }
+  },
+  "files": [
+    "dist/**/*.js",
+    "types",
+    "NOTICE.md"
+  ],
+  "dependencies": {
+    "katex": "^0.16.22"
   },
   "scripts": {
     "check:sources": "node scripts/shared-sources.mjs",
@@ -30,9 +69,6 @@
     "build:dev": "node scripts/build.mjs --dev",
     "build": "node scripts/build.mjs",
     "test": "npm run check:sources && node --test test/differential.test.mjs test/browser.test.mjs"
-  },
-  "dependencies": {
-    "katex": "^0.16.22"
   },
   "devDependencies": {
     "character-entities": "^2.0.2",

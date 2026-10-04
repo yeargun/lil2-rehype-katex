@@ -6,7 +6,7 @@
  "title": "remark-gfm",
  "tab": "remark-gfm",
  "description": "GitHub Flavored Markdown on the flat pipeline: autolink literals, footnotes, strikethrough, tables and task lists, with int token types, construct ids, identifiers and alignments.",
- "measuredAt": "2026-10-04T18:25:25.166Z",
+ "measuredAt": "2026-10-04T19:29:52.601Z",
  "compiler": {
   "revision": "90cfbad1 (branch lil2-lazy-functions)",
   "binarySha256": "a08ebaa7beb8687a5d54fbdf2859ed423f78cdee74327c84173bde45ef82ac00"
@@ -51,7 +51,7 @@
      "brotli11": 23016
     },
     "sha256": "5c02366fe94f58b32fdca5eed061f8ba87ea16f1a1aa7f1b125f4fdcca5b96e2",
-    "buildSeconds": 0.939
+    "buildSeconds": 0.828
    },
    "ratio": 0.7836806789439579
   },
@@ -79,7 +79,7 @@
      "brotli11": 23016
     },
     "sha256": "5c02366fe94f58b32fdca5eed061f8ba87ea16f1a1aa7f1b125f4fdcca5b96e2",
-    "buildSeconds": 0.939
+    "buildSeconds": 0.828
    },
    "ratio": 0.923498944945329
   },
@@ -89,12 +89,12 @@
    "lilscript": {
     "artifact": "https://yeargun.github.io/lil2-remark-gfm/files/lil2/brotli/remark-gfm.js",
     "sizes": {
-     "raw": 77567,
-     "gzip9": 24150,
-     "brotli11": 21028
+     "raw": 77773,
+     "gzip9": 24038,
+     "brotli11": 20971
     },
-    "sha256": "3318eea66735c3ece81bd9096d4c743ffb9b0e27e258c985d18136c85292db72",
-    "buildSeconds": 6.41,
+    "sha256": "f857e91ba9b249ae9ebbfcfa83d4593d5aa27f52baae6d2242d5349f8163fdc8",
+    "buildSeconds": 6.45,
     "config": "lilscript.browser.toml"
    },
    "original": {
@@ -107,9 +107,9 @@
      "brotli11": 23016
     },
     "sha256": "5c02366fe94f58b32fdca5eed061f8ba87ea16f1a1aa7f1b125f4fdcca5b96e2",
-    "buildSeconds": 0.939
+    "buildSeconds": 0.828
    },
-   "ratio": 0.9136253041362531
+   "ratio": 0.9111487660757733
   }
  ],
  "minifiers": [
@@ -121,7 +121,7 @@
     "gzip9": 26065,
     "brotli11": 23016
    },
-   "buildSeconds": 0.939,
+   "buildSeconds": 0.828,
    "sha256": "5c02366fe94f58b32fdca5eed061f8ba87ea16f1a1aa7f1b125f4fdcca5b96e2",
    "artifact": "https://yeargun.github.io/lil2-remark-gfm/files/upstream/Terser.mjs"
   },
@@ -133,7 +133,7 @@
     "gzip9": 28143,
     "brotli11": 24862
    },
-   "buildSeconds": 0.07,
+   "buildSeconds": 0.064,
    "sha256": "0903020fa55a8efc38882395ecc7e95b7cfc61340c538b6fcade0a89a5946555",
    "artifact": "https://yeargun.github.io/lil2-remark-gfm/files/upstream/esbuild.mjs"
   },
@@ -145,7 +145,7 @@
     "gzip9": 26624,
     "brotli11": 23455
    },
-   "buildSeconds": 0.06,
+   "buildSeconds": 0.057,
    "sha256": "951a294b5272505c31cf7892e70930af13dd5d4410f47520b753f6a0c97ad417",
    "artifact": "https://yeargun.github.io/lil2-remark-gfm/files/upstream/Oxc.mjs"
   }
@@ -159,22 +159,22 @@
   "Chromium 151.0.7922.34": {
    "docs": {
     "gfm": {
-     "upstreamMs": 13,
-     "lil2Ms": 5.450000002980232
+     "upstreamMs": 13.599999994039536,
+     "lil2Ms": 5.3499999940395355
     },
     "readme": {
-     "upstreamMs": 22.100000023841858,
-     "lil2Ms": 8.283333331346512
+     "upstreamMs": 22.400000005960464,
+     "lil2Ms": 8.449999988079071
     }
    },
    "cold": {
     "upstream": {
-     "importMs": 5.799999982118607,
-     "firstRunMs": 57.099999994039536
+     "importMs": 5.800000011920929,
+     "firstRunMs": 57
     },
     "lil2": {
-     "importMs": 6.0999999940395355,
-     "firstRunMs": 45.29999998211861
+     "importMs": 6,
+     "firstRunMs": 46.20000001788139
     }
    }
   },
@@ -185,18 +185,18 @@
      "lil2Ms": 12
     },
     "readme": {
-     "upstreamMs": 40,
+     "upstreamMs": 39,
      "lil2Ms": 17
     }
    },
    "cold": {
     "upstream": {
      "importMs": 13,
-     "firstRunMs": 75
+     "firstRunMs": 73
     },
     "lil2": {
      "importMs": 13,
-     "firstRunMs": 51
+     "firstRunMs": 50
     }
    }
   }

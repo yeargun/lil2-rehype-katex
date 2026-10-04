@@ -6,7 +6,7 @@
  "title": "micromark",
  "tab": "micromark",
  "description": "The CommonMark parser, rewritten in typed LilScript: tokens and events are ints in parallel arrays, positions are offsets, and every token type and construct is an int id.",
- "measuredAt": "2026-10-04T18:25:20.402Z",
+ "measuredAt": "2026-10-04T19:29:48.198Z",
  "compiler": {
   "revision": "90cfbad1 (branch lil2-lazy-functions)",
   "binarySha256": "a08ebaa7beb8687a5d54fbdf2859ed423f78cdee74327c84173bde45ef82ac00"
@@ -51,7 +51,7 @@
      "brotli11": 13226
     },
     "sha256": "dcd0fe723753d40a4d36d39a0513ab26593856a6d9a1d068e338c8c1712a6317",
-    "buildSeconds": 1.098
+    "buildSeconds": 0.837
    },
    "ratio": 0.8819518993540124
   },
@@ -79,7 +79,7 @@
      "brotli11": 13226
     },
     "sha256": "dcd0fe723753d40a4d36d39a0513ab26593856a6d9a1d068e338c8c1712a6317",
-    "buildSeconds": 1.098
+    "buildSeconds": 0.837
    },
    "ratio": 1.0238079134257694
   },
@@ -94,7 +94,7 @@
      "brotli11": 13344
     },
     "sha256": "a324fbf7419888e28ac34f83dce8bbfed65f7a11f300ee91ec10ceafd80fec66",
-    "buildSeconds": 3.39,
+    "buildSeconds": 10,
     "config": "lilscript.browser.toml"
    },
    "original": {
@@ -107,7 +107,7 @@
      "brotli11": 13226
     },
     "sha256": "dcd0fe723753d40a4d36d39a0513ab26593856a6d9a1d068e338c8c1712a6317",
-    "buildSeconds": 1.098
+    "buildSeconds": 0.837
    },
    "ratio": 1.008921820656283
   }
@@ -121,7 +121,7 @@
     "gzip9": 14785,
     "brotli11": 13226
    },
-   "buildSeconds": 1.098,
+   "buildSeconds": 0.837,
    "sha256": "dcd0fe723753d40a4d36d39a0513ab26593856a6d9a1d068e338c8c1712a6317",
    "artifact": "https://yeargun.github.io/lil2-micromark/files/upstream/Terser.mjs"
   },
@@ -133,7 +133,7 @@
     "gzip9": 15820,
     "brotli11": 14121
    },
-   "buildSeconds": 0.1,
+   "buildSeconds": 0.051,
    "sha256": "70eb1f3758314523c96288a7dbd2b8504296b5d59ba4f2755647707ef8422e7a",
    "artifact": "https://yeargun.github.io/lil2-micromark/files/upstream/esbuild.mjs"
   },
@@ -145,7 +145,7 @@
     "gzip9": 15002,
     "brotli11": 13389
    },
-   "buildSeconds": 0.09,
+   "buildSeconds": 0.052,
    "sha256": "f46164763a54669d3be1272ea6437ee9db8f0135b8c233486a31d53ad0d14949",
    "artifact": "https://yeargun.github.io/lil2-micromark/files/upstream/Oxc.mjs"
   }
@@ -159,26 +159,26 @@
   "Chromium 151.0.7922.34": {
    "docs": {
     "chat": {
-     "upstreamMs": 0.6230769249109122,
-     "lil2Ms": 0.27333333492279055
+     "upstreamMs": 0.5666666666666667,
+     "lil2Ms": 0.24444444477558136
     },
     "readme": {
-     "upstreamMs": 14.799999982118607,
-     "lil2Ms": 6.366666664679845
+     "upstreamMs": 13.950000002980232,
+     "lil2Ms": 6.133333335320155
     },
     "large": {
-     "upstreamMs": 158.3500000089407,
-     "lil2Ms": 64.54999999701977
+     "upstreamMs": 146.79999999701977,
+     "lil2Ms": 60.79999998211861
     }
    },
    "cold": {
     "upstream": {
-     "importMs": 4.699999988079071,
-     "firstRunMs": 10.100000023841858
+     "importMs": 4.299999982118607,
+     "firstRunMs": 9.400000005960464
     },
     "lil2": {
-     "importMs": 4.9000000059604645,
-     "firstRunMs": 10.200000017881393
+     "importMs": 4.700000017881393,
+     "firstRunMs": 8.899999976158142
     }
    }
   },
@@ -189,17 +189,17 @@
      "lil2Ms": 0.5
     },
     "readme": {
-     "upstreamMs": 30,
+     "upstreamMs": 28,
      "lil2Ms": 12
     },
     "large": {
-     "upstreamMs": 284,
+     "upstreamMs": 279,
      "lil2Ms": 115
     }
    },
    "cold": {
     "upstream": {
-     "importMs": 9,
+     "importMs": 8,
      "firstRunMs": 12
     },
     "lil2": {

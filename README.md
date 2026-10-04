@@ -23,14 +23,58 @@ Parsing follows upstream in each environment. The browser build lets the documen
 tokenizer's attribute rules (KaTeX's stray `'` after an `\includegraphics` image's style is an attribute, as for
 parse5), character references, void elements and the MathML and SVG namespaces.
 
-## Use
+## Install
 
-```js
-import {markdownToHast, propNames, keywordNames} from '@itslil/lil2-rehype-katex'
-
-markdownToHast('Euler: $e^{i\\pi} + 1 = 0$', {output: 'html'}) // hast columns, KaTeX options as upstream
+```bash
+npm install @itslil/lil2-rehype-katex
 ```
 
+TypeScript types are included. One ES module per entry; Node, Deno, Bun and workers get `dist/`, bundlers targeting
+browsers get `dist/browser/` through the `browser` condition.
+
+## Use
+
+```ts
+import type {KatexOptions} from 'katex'
+import {markdownToHast, propNames} from '@itslil/lil2-rehype-katex'
+import {H_ELEMENT} from '@itslil/lil2-rehype-katex/constants'
+
+const settings: KatexOptions = {macros: {'\\R': '\\mathbb{R}'}}
+const tree = markdownToHast('Let $x \\in \\R$.', settings)
+const [root, kind, , firstChild, nextSibling, tag, , , , , , propHead, propName, , propString, , propNext, , tagNames] = tree
+
+// Walk from the root: the math elements KaTeX replaced stay in the arrays, unlinked.
+function* walk(node = root): Generator<number> {
+  yield node
+  for (let child = firstChild[node]; child >= 0; child = nextSibling[child]) yield* walk(child)
+}
+// Tag and property names grow with what KaTeX writes: read them after the call.
+const tags = new Set<string>(), classes = new Set<string>()
+for (const node of walk()) {
+  if (kind[node] !== H_ELEMENT) continue
+  tags.add(tagNames[tag[node]])
+  for (let p = propHead[node]; p >= 0; p = propNext[p]) if (propNames[propName[p]] === 'className') classes.add(propString[p])
+}
+console.log([...tags].slice(0, 6)) // [ 'p', 'span', 'math', 'semantics', 'mrow', 'mi' ]
+console.log(classes.has('katex')) // true
+```
+
+`markdownToHast(value, settings?)` runs remark-parse, remark-math, remark-rehype and rehype-katex: every formula is
+KaTeX's HTML, parsed into the columns (by the document in browsers, by an HTML tokenizer elsewhere). `settings` are
+KaTeX's options, as rehype-katex takes them. Add KaTeX's stylesheet to the page: `import 'katex/dist/katex.min.css'`.
+
+### Which package
+
+| you want | package |
+|---|---|
+| React elements | [`@itslil/lil2-react-markdown`](https://github.com/yeargun/lil2-react-markdown) (`/gfm`, `/full` for GFM, math, KaTeX) |
+| an HTML string, CommonMark | [`@itslil/lil2-micromark`](https://github.com/yeargun/lil2-micromark) |
+| an HTML string with GFM, math or KaTeX | `renderToStaticMarkup` of lil2-react-markdown's `/full` flavor (below) |
+| mdast (syntax tree) | [`lil2-mdast-util-from-markdown`](https://github.com/yeargun/lil2-mdast-util-from-markdown); with GFM [`lil2-remark-gfm`](https://github.com/yeargun/lil2-remark-gfm), math [`lil2-remark-math`](https://github.com/yeargun/lil2-remark-math), breaks [`lil2-remark-breaks`](https://github.com/yeargun/lil2-remark-breaks) |
+| hast (HTML tree) | [`lil2-mdast-util-to-hast`](https://github.com/yeargun/lil2-mdast-util-to-hast) and the same three, or [`lil2-rehype-katex`](https://github.com/yeargun/lil2-rehype-katex) with formulas rendered |
+
+Every package is one self-contained ES module with no runtime dependencies (React and KaTeX aside), ships its
+TypeScript types, and resolves to a Node build or a browser build through its `exports` conditions.
 ## Measured (2026-10-04)
 
 The `browser` build against rehype-katex@7.0.1 bundled for the browser with esbuild and minified by Terser, esbuild and Oxc
@@ -40,7 +84,7 @@ The `browser` build against rehype-katex@7.0.1 bundled for the browser with esbu
 |---|---:|---:|---:|
 | raw | 69,460 | 105,268 (Terser) | −34.0% |
 | gzip (9) | 22,895 | 30,350 (Terser) | −24.6% |
-| Brotli (11) | 19,886 | 26,829 (Terser) | −25.9% |
+| Brotli (11) | 19,848 | 26,829 (Terser) | −26.0% |
 
 Speed, upstream → lil2: math rendered by KaTeX, median per call in a fresh browser context per lane, after checking that both
 give the same output (Playwright; Chromium 151, Firefox 153; AMD EPYC 7763 64-Core Processor). Cold rows are the first import and the
@@ -48,9 +92,9 @@ first call of a fresh page.
 
 | | Chromium | Firefox |
 |---|---:|---:|
-| math (1 KB) | 9.45 → 7.83 ms (0.83×) | 15.0 → 13.0 ms (0.87×) |
-| import, cold | 30.0 → 23.1 ms | 47.0 → 42.0 ms |
-| first call, cold | 40.5 → 41.3 ms | 48.0 → 43.0 ms |
+| math (1 KB) | 10.1 → 7.80 ms (0.77×) | 14.0 → 12.0 ms (0.86×) |
+| import, cold | 29.0 → 23.1 ms | 47.0 → 42.0 ms |
+| first call, cold | 41.0 → 40.4 ms | 48.0 → 44.0 ms |
 
 ## Behaviour
 

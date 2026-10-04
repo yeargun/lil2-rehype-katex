@@ -6,7 +6,7 @@
  "title": "remark-breaks",
  "tab": "remark-breaks",
  "description": "Line endings in text become hard breaks, as a transform over the mdast arena.",
- "measuredAt": "2026-10-04T18:25:30.291Z",
+ "measuredAt": "2026-10-04T19:29:57.332Z",
  "compiler": {
   "revision": "90cfbad1 (branch lil2-lazy-functions)",
   "binarySha256": "a08ebaa7beb8687a5d54fbdf2859ed423f78cdee74327c84173bde45ef82ac00"
@@ -51,7 +51,7 @@
      "brotli11": 18684
     },
     "sha256": "43e5abaf27341d968b702a72e6b947991cfffcf0dbf00f35c9d6f76cf4ec97c2",
-    "buildSeconds": 0.804
+    "buildSeconds": 0.697
    },
    "ratio": 0.7837242038724072
   },
@@ -79,7 +79,7 @@
      "brotli11": 18684
     },
     "sha256": "43e5abaf27341d968b702a72e6b947991cfffcf0dbf00f35c9d6f76cf4ec97c2",
-    "buildSeconds": 0.804
+    "buildSeconds": 0.697
    },
    "ratio": 0.9269005847953217
   },
@@ -89,12 +89,12 @@
    "lilscript": {
     "artifact": "https://yeargun.github.io/lil2-remark-breaks/files/lil2/brotli/remark-breaks.js",
     "sizes": {
-     "raw": 60776,
+     "raw": 61494,
      "gzip9": 19397,
-     "brotli11": 16921
+     "brotli11": 16938
     },
-    "sha256": "a3b0a49ba357a1567ba2d44c4b3f94797001a53c1a3bcae66da33db97b76f65e",
-    "buildSeconds": 4.73,
+    "sha256": "e502c9c03d510516828654a933448ff6823b01775670919b73eb468cf5dfeff1",
+    "buildSeconds": 4.91,
     "config": "lilscript.browser.toml"
    },
    "original": {
@@ -107,9 +107,9 @@
      "brotli11": 18684
     },
     "sha256": "43e5abaf27341d968b702a72e6b947991cfffcf0dbf00f35c9d6f76cf4ec97c2",
-    "buildSeconds": 0.804
+    "buildSeconds": 0.697
    },
-   "ratio": 0.9056411903232713
+   "ratio": 0.9065510597302505
   }
  ],
  "minifiers": [
@@ -121,7 +121,7 @@
     "gzip9": 20862,
     "brotli11": 18684
    },
-   "buildSeconds": 0.804,
+   "buildSeconds": 0.697,
    "sha256": "43e5abaf27341d968b702a72e6b947991cfffcf0dbf00f35c9d6f76cf4ec97c2",
    "artifact": "https://yeargun.github.io/lil2-remark-breaks/files/upstream/Terser.mjs"
   },
@@ -133,7 +133,7 @@
     "gzip9": 22489,
     "brotli11": 20140
    },
-   "buildSeconds": 0.04,
+   "buildSeconds": 0.039,
    "sha256": "0298c7943c57901655e3b37cae6523df49508b8d6f1b9d82d332c14bfe98c97d",
    "artifact": "https://yeargun.github.io/lil2-remark-breaks/files/upstream/esbuild.mjs"
   },
@@ -145,7 +145,7 @@
     "gzip9": 21237,
     "brotli11": 19042
    },
-   "buildSeconds": 0.033,
+   "buildSeconds": 0.035,
    "sha256": "1aa14b0467e33091eb48c5847d1c9f8b84e53a04f4e10056e7d21f60ee068c08",
    "artifact": "https://yeargun.github.io/lil2-remark-breaks/files/upstream/Oxc.mjs"
   }
@@ -159,43 +159,43 @@
   "Chromium 151.0.7922.34": {
    "docs": {
     "chat": {
-     "upstreamMs": 0.7000000004967054,
+     "upstreamMs": 0.7076923090677995,
      "lil2Ms": 0.2705882349435021
     },
     "readme": {
-     "upstreamMs": 15.800000011920929,
-     "lil2Ms": 6.366666664679845
+     "upstreamMs": 15.700000017881393,
+     "lil2Ms": 6.4000000059604645
     }
    },
    "cold": {
     "upstream": {
      "importMs": 5,
-     "firstRunMs": 12.099999994039536
+     "firstRunMs": 11.800000011920929
     },
     "lil2": {
-     "importMs": 5.0999999940395355,
-     "firstRunMs": 10.800000011920929
+     "importMs": 5.199999988079071,
+     "firstRunMs": 11
     }
    }
   },
   "Firefox 153.0": {
    "docs": {
     "chat": {
-     "upstreamMs": 1.125,
+     "upstreamMs": 1.1111111111111112,
      "lil2Ms": 0.5384615384615384
     },
     "readme": {
-     "upstreamMs": 34,
-     "lil2Ms": 12.5
+     "upstreamMs": 32,
+     "lil2Ms": 13
     }
    },
    "cold": {
     "upstream": {
-     "importMs": 12,
-     "firstRunMs": 16
+     "importMs": 11,
+     "firstRunMs": 15
     },
     "lil2": {
-     "importMs": 12,
+     "importMs": 11,
      "firstRunMs": 11
     }
    }

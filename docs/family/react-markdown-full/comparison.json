@@ -6,7 +6,7 @@
  "title": "react-markdown + gfm, math, KaTeX, breaks",
  "tab": "react-markdown + gfm, math, KaTeX, breaks",
  "description": "The full flavor: react-markdown with remark-gfm, remark-math, rehype-katex and remark-breaks compiled in; KaTeX itself stays the katex package on both sides.",
- "measuredAt": "2026-10-04T18:25:38.023Z",
+ "measuredAt": "2026-10-04T19:30:04.877Z",
  "compiler": {
   "revision": "90cfbad1 (branch lil2-lazy-functions)",
   "binarySha256": "a08ebaa7beb8687a5d54fbdf2859ed423f78cdee74327c84173bde45ef82ac00"
@@ -55,7 +55,7 @@
      "brotli11": 44171
     },
     "sha256": "033c498eee47e1c023af3f08e51910db664994e9f0a503bd3703718aeedf0ae7",
-    "buildSeconds": 0.071
+    "buildSeconds": 0.068
    },
    "ratio": 0.5452313878595892
   },
@@ -83,7 +83,7 @@
      "brotli11": 43331
     },
     "sha256": "7d5c2e6810daed459a4c15ae2e30cddf8bd8f8920af01b02ab0be9e0992b5d47",
-    "buildSeconds": 1.37
+    "buildSeconds": 1.344
    },
    "ratio": 0.6051070774619856
   },
@@ -98,7 +98,7 @@
      "brotli11": 26369
     },
     "sha256": "72bcaff8d0fa5fdf6ba98a93de2595f18105c1f9531ff4c5842736afdf87ccc2",
-    "buildSeconds": 11.27,
+    "buildSeconds": 34,
     "config": "lilscript.browser.toml"
    },
    "original": {
@@ -111,7 +111,7 @@
      "brotli11": 43331
     },
     "sha256": "7d5c2e6810daed459a4c15ae2e30cddf8bd8f8920af01b02ab0be9e0992b5d47",
-    "buildSeconds": 1.37
+    "buildSeconds": 1.344
    },
    "ratio": 0.6085481525928319
   }
@@ -125,7 +125,7 @@
     "gzip9": 50244,
     "brotli11": 43331
    },
-   "buildSeconds": 1.37,
+   "buildSeconds": 1.344,
    "sha256": "7d5c2e6810daed459a4c15ae2e30cddf8bd8f8920af01b02ab0be9e0992b5d47",
    "artifact": "https://yeargun.github.io/lil2-react-markdown/files/upstream/Terser.mjs"
   },
@@ -137,7 +137,7 @@
     "gzip9": 53365,
     "brotli11": 46359
    },
-   "buildSeconds": 0.076,
+   "buildSeconds": 0.074,
    "sha256": "9135ada111b2550427b305eb8543a11bb8c124972c0f5995870fdbf38cda8aed",
    "artifact": "https://yeargun.github.io/lil2-react-markdown/files/upstream/esbuild.mjs"
   },
@@ -149,7 +149,7 @@
     "gzip9": 50992,
     "brotli11": 44171
    },
-   "buildSeconds": 0.071,
+   "buildSeconds": 0.068,
    "sha256": "033c498eee47e1c023af3f08e51910db664994e9f0a503bd3703718aeedf0ae7",
    "artifact": "https://yeargun.github.io/lil2-react-markdown/files/upstream/Oxc.mjs"
   }

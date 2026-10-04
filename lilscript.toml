@@ -31,7 +31,8 @@ pool_strings = true
 lazy_functions = true
 mode = "single"
 directory = "dist"
-entry_names = "rehype-katex.js"
+entry_names = "[name].js"
 
 [delivery.entries]
-index = "src/index.lil"
+rehype-katex = "src/index.lil"
+constants = "src/constants.lil"

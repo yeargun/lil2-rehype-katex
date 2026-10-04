@@ -6,7 +6,7 @@
  "title": "mdast-util-to-hast",
  "tab": "mdast-util-to-hast",
  "description": "mdast arena to hast arena: tags, properties and enumerated values are int ids into name tables, read only where a name must leave the program.",
- "measuredAt": "2026-10-04T18:25:23.290Z",
+ "measuredAt": "2026-10-04T19:29:50.836Z",
  "compiler": {
   "revision": "90cfbad1 (branch lil2-lazy-functions)",
   "binarySha256": "a08ebaa7beb8687a5d54fbdf2859ed423f78cdee74327c84173bde45ef82ac00"
@@ -51,7 +51,7 @@
      "brotli11": 18178
     },
     "sha256": "481f52901dcb94dd12105d202c6a72c9a6e1d769604d1240909572a2b869c15f",
-    "buildSeconds": 0.865
+    "buildSeconds": 0.743
    },
    "ratio": 0.7946894005212859
   },
@@ -79,7 +79,7 @@
      "brotli11": 18178
     },
     "sha256": "481f52901dcb94dd12105d202c6a72c9a6e1d769604d1240909572a2b869c15f",
-    "buildSeconds": 0.865
+    "buildSeconds": 0.743
    },
    "ratio": 0.9382722126507507
   },
@@ -89,12 +89,12 @@
    "lilscript": {
     "artifact": "https://yeargun.github.io/lil2-mdast-util-to-hast/files/lil2/brotli/to-hast.js",
     "sizes": {
-     "raw": 59881,
-     "gzip9": 19104,
-     "brotli11": 16719
+     "raw": 60190,
+     "gzip9": 19088,
+     "brotli11": 16688
     },
-    "sha256": "597dc656e2d2381ad713c092de453d037e79db2ce0249cdfcf967bf88fa1fcfb",
-    "buildSeconds": 4.8,
+    "sha256": "bee54ce9ff8a239c4be727a5ab57538ccc9f3de5f2a80dd99df47ec0d9a4f2f9",
+    "buildSeconds": 4.65,
     "config": "lilscript.browser.toml"
    },
    "original": {
@@ -107,9 +107,9 @@
      "brotli11": 18178
     },
     "sha256": "481f52901dcb94dd12105d202c6a72c9a6e1d769604d1240909572a2b869c15f",
-    "buildSeconds": 0.865
+    "buildSeconds": 0.743
    },
-   "ratio": 0.9197381450104521
+   "ratio": 0.9180327868852459
   }
  ],
  "minifiers": [
@@ -121,7 +121,7 @@
     "gzip9": 20315,
     "brotli11": 18178
    },
-   "buildSeconds": 0.865,
+   "buildSeconds": 0.743,
    "sha256": "481f52901dcb94dd12105d202c6a72c9a6e1d769604d1240909572a2b869c15f",
    "artifact": "https://yeargun.github.io/lil2-mdast-util-to-hast/files/upstream/Terser.mjs"
   },
@@ -133,7 +133,7 @@
     "gzip9": 21906,
     "brotli11": 19584
    },
-   "buildSeconds": 0.046,
+   "buildSeconds": 0.043,
    "sha256": "e66dbfe57b0d863cef42f5e7e06ddb21880149c18f7ab84c29791ef11f04aed1",
    "artifact": "https://yeargun.github.io/lil2-mdast-util-to-hast/files/upstream/esbuild.mjs"
   },
@@ -145,7 +145,7 @@
     "gzip9": 20739,
     "brotli11": 18555
    },
-   "buildSeconds": 0.046,
+   "buildSeconds": 0.04,
    "sha256": "7a21fd4d58afcc33e5430260a29d55e3aaa57e1aeae319e7102ee8e3793493e3",
    "artifact": "https://yeargun.github.io/lil2-mdast-util-to-hast/files/upstream/Oxc.mjs"
   }
@@ -159,26 +159,26 @@
   "Chromium 151.0.7922.34": {
    "docs": {
     "chat": {
-     "upstreamMs": 0.7090909101746299,
-     "lil2Ms": 0.29374999925494194
+     "upstreamMs": 0.6653846158431127,
+     "lil2Ms": 0.2647058823529412
     },
     "readme": {
-     "upstreamMs": 16.450000002980232,
-     "lil2Ms": 6.5999999940395355
+     "upstreamMs": 15.200000017881393,
+     "lil2Ms": 6.199999998013179
     },
     "large": {
-     "upstreamMs": 167.5,
-     "lil2Ms": 69.59999999403954
+     "upstreamMs": 155.74999998509884,
+     "lil2Ms": 62.5
     }
    },
    "cold": {
     "upstream": {
-     "importMs": 5,
-     "firstRunMs": 11.5
+     "importMs": 4.9000000059604645,
+     "firstRunMs": 11.099999994039536
     },
     "lil2": {
-     "importMs": 5.100000023841858,
-     "firstRunMs": 10.900000005960464
+     "importMs": 5.0999999940395355,
+     "firstRunMs": 10.699999988079071
     }
    }
   },
@@ -186,21 +186,21 @@
    "docs": {
     "chat": {
      "upstreamMs": 1.1111111111111112,
-     "lil2Ms": 0.5833333333333334
+     "lil2Ms": 0.5384615384615384
     },
     "readme": {
-     "upstreamMs": 33,
-     "lil2Ms": 12.75
+     "upstreamMs": 31,
+     "lil2Ms": 13
     },
     "large": {
      "upstreamMs": 375,
-     "lil2Ms": 125
+     "lil2Ms": 123
     }
    },
    "cold": {
     "upstream": {
      "importMs": 10,
-     "firstRunMs": 13
+     "firstRunMs": 14
     },
     "lil2": {
      "importMs": 11,

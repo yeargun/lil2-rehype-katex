@@ -6,7 +6,7 @@
  "title": "react-markdown",
  "tab": "react-markdown",
  "description": "react-markdown on the whole flat stack: one LilScript program from characters to React elements. Components get node ids into the hast columns; tags, properties and plugins are int ids.",
- "measuredAt": "2026-10-04T18:25:32.586Z",
+ "measuredAt": "2026-10-04T19:29:59.348Z",
  "compiler": {
   "revision": "90cfbad1 (branch lil2-lazy-functions)",
   "binarySha256": "a08ebaa7beb8687a5d54fbdf2859ed423f78cdee74327c84173bde45ef82ac00"
@@ -54,7 +54,7 @@
      "brotli11": 31169
     },
     "sha256": "5cf1066d0aeb57f018c048a08cfb6fa88530d7d11604e120f1a42f2e5890c7a0",
-    "buildSeconds": 1.272
+    "buildSeconds": 1.007
    },
    "ratio": 0.5563707839465903
   },
@@ -82,7 +82,7 @@
      "brotli11": 31169
     },
     "sha256": "5cf1066d0aeb57f018c048a08cfb6fa88530d7d11604e120f1a42f2e5890c7a0",
-    "buildSeconds": 1.272
+    "buildSeconds": 1.007
    },
    "ratio": 0.6348345089527944
   },
@@ -97,7 +97,7 @@
      "brotli11": 19341
     },
     "sha256": "ac7b1a88c694d3ffe3a1dbe7612a9c232276af665bb9b1262d53a5f808e38d92",
-    "buildSeconds": 11.27,
+    "buildSeconds": 34,
     "config": "lilscript.browser.toml"
    },
    "original": {
@@ -110,7 +110,7 @@
      "brotli11": 31169
     },
     "sha256": "5cf1066d0aeb57f018c048a08cfb6fa88530d7d11604e120f1a42f2e5890c7a0",
-    "buildSeconds": 1.272
+    "buildSeconds": 1.007
    },
    "ratio": 0.6205203888478937
   }
@@ -124,7 +124,7 @@
     "gzip9": 35017,
     "brotli11": 31169
    },
-   "buildSeconds": 1.272,
+   "buildSeconds": 1.007,
    "sha256": "5cf1066d0aeb57f018c048a08cfb6fa88530d7d11604e120f1a42f2e5890c7a0",
    "artifact": "https://yeargun.github.io/lil2-react-markdown/files/upstream/Terser.mjs"
   },
@@ -136,7 +136,7 @@
     "gzip9": 37000,
     "brotli11": 33090
    },
-   "buildSeconds": 0.085,
+   "buildSeconds": 0.061,
    "sha256": "69c0ae29e147dbf040dfc5c0b648aa4a9c871de7f14dee3cbfcb98ff3dcf7290",
    "artifact": "https://yeargun.github.io/lil2-react-markdown/files/upstream/esbuild.mjs"
   },
@@ -148,7 +148,7 @@
     "gzip9": 35463,
     "brotli11": 31702
    },
-   "buildSeconds": 0.075,
+   "buildSeconds": 0.056,
    "sha256": "0ff6781463a9e033e1c82ccc4ab2d8295a3dfc0b070298a297f9bbec464ba3ca",
    "artifact": "https://yeargun.github.io/lil2-react-markdown/files/upstream/Oxc.mjs"
   }

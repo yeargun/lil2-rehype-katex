@@ -6,7 +6,7 @@
  "title": "react-markdown + gfm",
  "tab": "react-markdown + gfm",
  "description": "The gfm flavor: react-markdown with remark-gfm compiled in, applied with plugins={[GFM]}.",
- "measuredAt": "2026-10-04T18:25:35.190Z",
+ "measuredAt": "2026-10-04T19:30:02.025Z",
  "compiler": {
   "revision": "90cfbad1 (branch lil2-lazy-functions)",
   "binarySha256": "a08ebaa7beb8687a5d54fbdf2859ed423f78cdee74327c84173bde45ef82ac00"
@@ -54,7 +54,7 @@
      "brotli11": 40458
     },
     "sha256": "be9bf304bde88fa572d7949e6ac0caf46d8536df2004ffe0569e8c9227afe67e",
-    "buildSeconds": 0.062
+    "buildSeconds": 0.061
    },
    "ratio": 0.5322923741302202
   },
@@ -82,7 +82,7 @@
      "brotli11": 39846
     },
     "sha256": "087463877b4151c43907cc98c1e6f713cb6809564c2ecb5be50d59e05e2918da",
-    "buildSeconds": 1.281
+    "buildSeconds": 1.371
    },
    "ratio": 0.5990944457876344
   },
@@ -97,7 +97,7 @@
      "brotli11": 23607
     },
     "sha256": "383ad7451ce3d8cc7f352a5be2cd40db041b398b7a2db1609ea957e6426a1fef",
-    "buildSeconds": 11.27,
+    "buildSeconds": 34,
     "config": "lilscript.browser.toml"
    },
    "original": {
@@ -110,7 +110,7 @@
      "brotli11": 39846
     },
     "sha256": "087463877b4151c43907cc98c1e6f713cb6809564c2ecb5be50d59e05e2918da",
-    "buildSeconds": 1.281
+    "buildSeconds": 1.371
    },
    "ratio": 0.5924559554283994
   }
@@ -124,7 +124,7 @@
     "gzip9": 45497,
     "brotli11": 39846
    },
-   "buildSeconds": 1.281,
+   "buildSeconds": 1.371,
    "sha256": "087463877b4151c43907cc98c1e6f713cb6809564c2ecb5be50d59e05e2918da",
    "artifact": "https://yeargun.github.io/lil2-react-markdown/files/upstream/Terser.mjs"
   },
@@ -136,7 +136,7 @@
     "gzip9": 48164,
     "brotli11": 42328
    },
-   "buildSeconds": 0.071,
+   "buildSeconds": 0.066,
    "sha256": "af7d001925f26226342b525b7be578cb7eccf6f6fb993bf17b8fbb1df1fb1e32",
    "artifact": "https://yeargun.github.io/lil2-react-markdown/files/upstream/esbuild.mjs"
   },
@@ -148,7 +148,7 @@
     "gzip9": 46127,
     "brotli11": 40458
    },
-   "buildSeconds": 0.062,
+   "buildSeconds": 0.061,
    "sha256": "be9bf304bde88fa572d7949e6ac0caf46d8536df2004ffe0569e8c9227afe67e",
    "artifact": "https://yeargun.github.io/lil2-react-markdown/files/upstream/Oxc.mjs"
   }

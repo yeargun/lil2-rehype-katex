@@ -6,7 +6,7 @@
  "title": "mdast-util-from-markdown",
  "tab": "mdast-util-from-markdown",
  "description": "Markdown to an mdast arena: node kinds, links and offsets in parallel arrays, identifiers interned to ints, the whole tree returned as positional columns.",
- "measuredAt": "2026-10-04T18:25:21.694Z",
+ "measuredAt": "2026-10-04T19:29:49.366Z",
  "compiler": {
   "revision": "90cfbad1 (branch lil2-lazy-functions)",
   "binarySha256": "a08ebaa7beb8687a5d54fbdf2859ed423f78cdee74327c84173bde45ef82ac00"
@@ -51,7 +51,7 @@
      "brotli11": 13831
     },
     "sha256": "e43862a9f065aa4e39679df97f3368c918164963789e309677bebf69a89151e1",
-    "buildSeconds": 0.668
+    "buildSeconds": 0.567
    },
    "ratio": 0.8507242559915723
   },
@@ -79,7 +79,7 @@
      "brotli11": 13831
     },
     "sha256": "e43862a9f065aa4e39679df97f3368c918164963789e309677bebf69a89151e1",
-    "buildSeconds": 0.668
+    "buildSeconds": 0.567
    },
    "ratio": 1.0078755406364985
   },
@@ -89,12 +89,12 @@
    "lilscript": {
     "artifact": "https://yeargun.github.io/lil2-mdast-util-from-markdown/files/lil2/brotli/from-markdown.js",
     "sizes": {
-     "raw": 49944,
-     "gzip9": 15654,
-     "brotli11": 13748
+     "raw": 50821,
+     "gzip9": 15630,
+     "brotli11": 13716
     },
-    "sha256": "a6b4e140551de3d4f0f879d154168e4feddec782d3b0d77aa00de889c5a2700f",
-    "buildSeconds": 3.52,
+    "sha256": "a7cc013b6060a22c5845191369fd566b5f96c08019efe68b86ed4c30d4ae5d8c",
+    "buildSeconds": 3.62,
     "config": "lilscript.browser.toml"
    },
    "original": {
@@ -107,9 +107,9 @@
      "brotli11": 13831
     },
     "sha256": "e43862a9f065aa4e39679df97f3368c918164963789e309677bebf69a89151e1",
-    "buildSeconds": 0.668
+    "buildSeconds": 0.567
    },
-   "ratio": 0.9939989877810715
+   "ratio": 0.9916853445159425
   }
  ],
  "minifiers": [
@@ -121,7 +121,7 @@
     "gzip9": 15491,
     "brotli11": 13831
    },
-   "buildSeconds": 0.668,
+   "buildSeconds": 0.567,
    "sha256": "e43862a9f065aa4e39679df97f3368c918164963789e309677bebf69a89151e1",
    "artifact": "https://yeargun.github.io/lil2-mdast-util-from-markdown/files/upstream/Terser.mjs"
   },
@@ -133,7 +133,7 @@
     "gzip9": 16603,
     "brotli11": 14779
    },
-   "buildSeconds": 0.041,
+   "buildSeconds": 0.036,
    "sha256": "f0a82b79a243b5ce755a1654a02d41ee47e5be3c4e47d71a3ace909d2be3cbff",
    "artifact": "https://yeargun.github.io/lil2-mdast-util-from-markdown/files/upstream/esbuild.mjs"
   },
@@ -145,7 +145,7 @@
     "gzip9": 15649,
     "brotli11": 13974
    },
-   "buildSeconds": 0.035,
+   "buildSeconds": 0.029,
    "sha256": "9b00cd310ea2dba77b3b4e0a9f3a391db9de3433d422c5a01a17cec1e920f044",
    "artifact": "https://yeargun.github.io/lil2-mdast-util-from-markdown/files/upstream/Oxc.mjs"
   }
@@ -159,26 +159,26 @@
   "Chromium 151.0.7922.34": {
    "docs": {
     "chat": {
-     "upstreamMs": 0.6000000004257474,
-     "lil2Ms": 0.26875000074505806
+     "upstreamMs": 0.5642857147114617,
+     "lil2Ms": 0.24705882282818065
     },
     "readme": {
-     "upstreamMs": 14.900000005960464,
-     "lil2Ms": 6.233333334326744
+     "upstreamMs": 14.400000005960464,
+     "lil2Ms": 6
     },
     "large": {
-     "upstreamMs": 155.75,
-     "lil2Ms": 65.09999999403954
+     "upstreamMs": 147.8500000089407,
+     "lil2Ms": 59.400000005960464
     }
    },
    "cold": {
     "upstream": {
-     "importMs": 5,
-     "firstRunMs": 11.599999994039536
+     "importMs": 4.699999988079071,
+     "firstRunMs": 10.199999988079071
     },
     "lil2": {
-     "importMs": 5.300000011920929,
-     "firstRunMs": 10.799999982118607
+     "importMs": 5,
+     "firstRunMs": 10
     }
    }
   },
@@ -186,24 +186,24 @@
    "docs": {
     "chat": {
      "upstreamMs": 1,
-     "lil2Ms": 0.5384615384615384
+     "lil2Ms": 0.5
     },
     "readme": {
-     "upstreamMs": 31,
-     "lil2Ms": 13
+     "upstreamMs": 30,
+     "lil2Ms": 12
     },
     "large": {
-     "upstreamMs": 379,
-     "lil2Ms": 124
+     "upstreamMs": 357,
+     "lil2Ms": 115
     }
    },
    "cold": {
     "upstream": {
-     "importMs": 9,
-     "firstRunMs": 12
+     "importMs": 8,
+     "firstRunMs": 13
     },
     "lil2": {
-     "importMs": 9,
+     "importMs": 10,
      "firstRunMs": 10
     }
    }
