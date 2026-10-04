@@ -1,0 +1,939 @@
+// The micromark tokenizer (micromark/lib/create-tokenizer.js) over flat data.
+//
+// A token is an int: its fields live in the parser's `Tokens` arrays. An event is one int,
+// `token * 2 + kind` (kind 0 enter, 1 exit); its context is the tokenizer that created the token.
+// A point is kept on the tokenizer as upstream keeps it (buffer index, line, column, offset, with its
+// `defineSkip` arithmetic). A token stores only the buffer index and the offset of its start and end: under
+// that arithmetic, column - 1 always equals the offset minus the start of its line, so line and column are
+// read from the parser's line table when someone asks (`Parser.lineOf`, `Parser.columnOf`).
+
+import { EOF, CRLF, HT, VS, charOf, markdownLineEnding } from "./codes.lil";
+
+// Content types (upstream `constants.contentType*`).
+export const int CT_NONE = 0;
+export const int CT_FLOW = 1;
+export const int CT_CONTENT = 2;
+export const int CT_STRING = 3;
+export const int CT_TEXT = 4;
+
+// Token flags (upstream's underscore fields).
+export const int F_CONTAINER = 1;
+export const int F_FIRST_CONTENT_OF_LIST_ITEM = 2;
+export const int F_TEXT_TRAILING = 4;
+export const int F_OPEN = 8;
+export const int F_CLOSE = 16;
+export const int F_BALANCED = 32;
+export const int F_INACTIVE = 64;
+
+export class Tokens {
+  int[] type;
+  int[] contentType;
+  int[] flags;
+  int[] sIndex;
+  int[] sOffset;
+  int[] eIndex;
+  int[] eOffset;
+  int[] previous;
+  int[] next;
+  int[] tokenizer;
+  int[] child;
+  // The marker code of an attention sequence; an extension may keep an offset into `aux` here instead.
+  int[] marker;
+  // Runs of ints that extensions attach to a token through its `marker` (a GFM table's alignments).
+  int[] aux;
+
+  init() {
+    this.aux = [];
+    this.type = [];
+    this.contentType = [];
+    this.flags = [];
+    this.sIndex = [];
+    this.sOffset = [];
+    this.eIndex = [];
+    this.eOffset = [];
+    this.previous = [];
+    this.next = [];
+    this.tokenizer = [];
+    this.child = [];
+    this.marker = [];
+  }
+
+  int create(int type, int tokenizer) {
+    int id = this.type.length;
+    this.type.push(type);
+    this.contentType.push(CT_NONE);
+    this.flags.push(0);
+    this.sIndex.push(0);
+    this.sOffset.push(0);
+    this.eIndex.push(-1);
+    this.eOffset.push(0);
+    this.previous.push(-1);
+    this.next.push(-1);
+    this.tokenizer.push(tokenizer);
+    this.child.push(-1);
+    this.marker.push(0);
+    return id;
+  }
+
+  bool has(int token, int flag) {
+    return (this.flags[token] & flag) != 0;
+  }
+
+  void set(int token, int flag) {
+    this.flags[token] = this.flags[token] | flag;
+  }
+
+  void clear(int token, int flag) {
+    if ((this.flags[token] & flag) != 0) {
+      this.flags[token] = this.flags[token] - flag;
+    }
+  }
+
+  // `token.end = {...other.start}` and friends.
+  void endAtStartOf(int token, int other) {
+    this.eIndex[token] = this.sIndex[other];
+    this.eOffset[token] = this.sOffset[other];
+  }
+
+  void endAtEndOf(int token, int other) {
+    this.eIndex[token] = this.eIndex[other];
+    this.eOffset[token] = this.eOffset[other];
+  }
+
+  void startAtEndOf(int token, int other) {
+    this.sIndex[token] = this.eIndex[other];
+    this.sOffset[token] = this.eOffset[other];
+  }
+
+  void startAtStartOf(int token, int other) {
+    this.sIndex[token] = this.sIndex[other];
+    this.sOffset[token] = this.sOffset[other];
+  }
+}
+
+// Events: one int each.
+export int enterEvent(int token) {
+  return token * 2;
+}
+
+export int exitEvent(int token) {
+  return token * 2 + 1;
+}
+
+export int eventToken(int event) {
+  return event >> 1;
+}
+
+export bool isEnter(int event) {
+  return (event & 1) == 0;
+}
+
+// Upstream `containerState`: the fields the CommonMark and GFM containers use.
+export class ContainerState {
+  bool open;
+  int type;
+  int marker;
+  int size;
+  bool initialBlankLine;
+  bool furtherBlankLines;
+  bool closeFlow;
+
+  init() {
+    this.open = false;
+    this.type = -1;
+    this.marker = 0;
+    this.size = 0;
+    this.initialBlankLine = false;
+    this.furtherBlankLines = false;
+    this.closeFlow = false;
+  }
+}
+
+export func(int)->void noState = (int code) => {};
+
+// Construct ids: upstream's construct `name`s, which `disable` lists. 0 is a construct without one.
+// Each extension package of the family owns a range, so every id is a compile-time int.
+export const int C_NONE = 0;
+export const int C_ATTENTION = 1;
+export const int C_AUTOLINK = 2;
+export const int C_BLOCK_QUOTE = 3;
+export const int C_CHARACTER_ESCAPE = 4;
+export const int C_CHARACTER_REFERENCE = 5;
+export const int C_CODE_FENCED = 6;
+export const int C_CODE_INDENTED = 7;
+export const int C_CODE_TEXT = 8;
+export const int C_DEFINITION = 9;
+export const int C_HARD_BREAK_ESCAPE = 10;
+export const int C_HEADING_ATX = 11;
+export const int C_HTML_FLOW = 12;
+export const int C_HTML_TEXT = 13;
+export const int C_LABEL_END = 14;
+export const int C_LABEL_START_IMAGE = 15;
+export const int C_LABEL_START_LINK = 16;
+export const int C_LINE_ENDING = 17;
+export const int C_LIST = 18;
+export const int C_SETEXT_UNDERLINE = 19;
+export const int C_THEMATIC_BREAK = 20;
+export const int CONSTRUCTS_GFM = 24;
+export const int CONSTRUCTS_MATH = 40;
+export const int CONSTRUCT_LIMIT = 48;
+
+// A construct. Functions that upstream leaves undefined are flagged off here.
+export class Construct {
+  int id;
+  func(Tokenizer, bool, func(int)->void, func(int)->void)->func(int)->void tokenize;
+  bool partial;
+  bool concrete;
+  bool addAfter;
+  bool hasResolve;
+  func(int[], Tokenizer)->int[] resolve;
+  bool hasResolveTo;
+  func(int[], Tokenizer)->int[] resolveTo;
+  int resolveAll;
+  bool hasPrevious;
+  func(Tokenizer, int)->bool previous;
+  bool hasExit;
+  func(Tokenizer)->void exit;
+  Construct? continuation;
+
+  init(int id, func(Tokenizer, bool, func(int)->void, func(int)->void)->func(int)->void tokenize) {
+    this.id = id;
+    this.tokenize = tokenize;
+    this.partial = false;
+    this.concrete = false;
+    this.addAfter = false;
+    this.hasResolve = false;
+    this.resolve = (int[] events, Tokenizer t) => events;
+    this.hasResolveTo = false;
+    this.resolveTo = (int[] events, Tokenizer t) => events;
+    this.resolveAll = 0;
+    this.hasPrevious = false;
+    this.previous = (Tokenizer t, int code) => true;
+    this.hasExit = false;
+    this.exit = (Tokenizer t) => {};
+    this.continuation = null;
+  }
+}
+
+// `resolveAll` functions, by id (0 = none), so upstream's identity check is an int compare.
+export (func(int[], Tokenizer)->int[])[] resolvers = [(int[] events, Tokenizer t) => events];
+
+export int defineResolver(func(int[], Tokenizer)->int[] resolve) {
+  resolvers.push(resolve);
+  return resolvers.length - 1;
+}
+
+// One hook of a combined extension: constructs by code, plus the ones for any code (`null`).
+// Codes from -8 to 127 (everything constructs start on) live in dense arrays; others in a map.
+export const int DENSE_CODES = 136;
+export const int DENSE_SHIFT = 8;
+
+export class ConstructMap {
+  (Construct[])[] dense;
+  bool[] present;
+  Map<int, Construct[]> byCode;
+  Construct[] any;
+  (Construct[])[] cache;
+  bool[] cached;
+
+  init() {
+    this.dense = [];
+    this.present = [];
+    this.cache = [];
+    this.cached = [];
+    for (int index = 0; index < DENSE_CODES; index++) {
+      this.dense.push([]);
+      this.present.push(false);
+      this.cache.push([]);
+      this.cached.push(false);
+    }
+    this.byCode = new Map<int, Construct[]>();
+    this.any = [];
+  }
+
+  void invalidate() {
+    for (int index = 0; index < DENSE_CODES; index++) {
+      this.cached[index] = false;
+    }
+  }
+
+  // micromark-util-combine-extensions: `add: "after"` constructs go last, the rest go first.
+  void add(int code, Construct[] list) {
+    Construct[] existing = this.atCode(code);
+    Construct[] before = [];
+    Construct[] after = [];
+    for (Construct construct of list) {
+      if (construct.addAfter) {
+        after.push(construct);
+      } else {
+        before.push(construct);
+      }
+    }
+    Construct[] combined = [...before, ...existing, ...after];
+    int slot = code + DENSE_SHIFT;
+    if (slot >= 0 && slot < DENSE_CODES) {
+      this.dense[slot] = combined;
+      this.present[slot] = true;
+    } else {
+      this.byCode.set(code, combined);
+    }
+    this.invalidate();
+  }
+
+  void addAny(Construct[] list) {
+    Construct[] before = [];
+    Construct[] after = [];
+    for (Construct construct of list) {
+      if (construct.addAfter) {
+        after.push(construct);
+      } else {
+        before.push(construct);
+      }
+    }
+    this.any = [...before, ...this.any, ...after];
+    this.invalidate();
+  }
+
+  bool hasCode(int code) {
+    int slot = code + DENSE_SHIFT;
+    if (slot >= 0 && slot < DENSE_CODES) {
+      return this.present[slot];
+    }
+    return this.byCode.has(code);
+  }
+
+  Construct[] atCode(int code) {
+    int slot = code + DENSE_SHIFT;
+    if (slot >= 0 && slot < DENSE_CODES) {
+      return this.dense[slot];
+    }
+    return this.byCode.get(code) ?? [];
+  }
+
+  // `[...map[code], ...map.null]`, as `handleMapOfConstructs` builds it (EOF gives neither).
+  Construct[] forCode(int code) {
+    if (code == EOF) {
+      return [];
+    }
+    int slot = code + DENSE_SHIFT;
+    if (slot >= 0 && slot < DENSE_CODES) {
+      if (!this.cached[slot]) {
+        this.cache[slot] = [...this.dense[slot], ...this.any];
+        this.cached[slot] = true;
+      }
+      return this.cache[slot];
+    }
+    if (this.byCode.has(code)) {
+      return [...this.atCode(code), ...this.any];
+    }
+    return this.any;
+  }
+}
+
+// The combined syntax of a parse (upstream `parser.constructs`).
+export class Constructs {
+  ConstructMap document;
+  ConstructMap contentInitial;
+  ConstructMap flowInitial;
+  ConstructMap flow;
+  ConstructMap string;
+  ConstructMap text;
+  Construct[] insideSpan;
+  int[] attentionMarkers;
+  // By construct id: whether an extension disabled it.
+  bool[] disabled;
+  bool hiddenFootnoteSupport;
+
+  init() {
+    this.hiddenFootnoteSupport = false;
+    this.document = new ConstructMap();
+    this.contentInitial = new ConstructMap();
+    this.flowInitial = new ConstructMap();
+    this.flow = new ConstructMap();
+    this.string = new ConstructMap();
+    this.text = new ConstructMap();
+    this.insideSpan = [];
+    this.attentionMarkers = [];
+    this.disabled = [];
+    for (int id = 0; id < CONSTRUCT_LIMIT; id++) {
+      this.disabled.push(false);
+    }
+  }
+}
+
+// What an identifier names (flags).
+export const int ID_DEFINITION = 1;
+export const int ID_FOOTNOTE = 2;
+
+export class Parser {
+  Tokens tokens;
+  Tokenizer[] tokenizers;
+  Constructs constructs;
+  Map<int, bool> lazy;
+  // Identifiers, interned: a label's micromark-util-normalize-identifier key becomes an int id that every
+  // later stage uses (mdast `identifier`, hast footnote and definition lookups). `identifierFlags` holds
+  // what the parse has defined so far (upstream `parser.defined` and `parser.gfmFootnotes`).
+  Map<string, int> identifierIds;
+  string[] identifierKeys;
+  int[] identifierFlags;
+  // The document after preprocessing (BOM removed), and the offset each line starts at.
+  string source;
+  int[] lineStarts;
+  Construct documentInit;
+  Construct flowInit;
+  Construct contentInit;
+  Construct stringInit;
+  Construct textInit;
+
+  init(Constructs constructs, Construct documentInit, Construct flowInit, Construct contentInit, Construct stringInit, Construct textInit) {
+    this.tokens = new Tokens();
+    this.tokenizers = [];
+    this.constructs = constructs;
+    this.lazy = new Map<int, bool>();
+    this.identifierIds = new Map<string, int>();
+    this.identifierKeys = [];
+    this.identifierFlags = [];
+    this.source = "";
+    this.lineStarts = [0];
+    this.documentInit = documentInit;
+    this.flowInit = flowInit;
+    this.contentInit = contentInit;
+    this.stringInit = stringInit;
+    this.textInit = textInit;
+  }
+
+  // The id of a normalized identifier, interning it when new.
+  int identifier(string key) {
+    int? found = this.identifierIds.get(key);
+    if (found != null) {
+      return found;
+    }
+    int id = this.identifierKeys.length;
+    this.identifierIds.set(key, id);
+    this.identifierKeys.push(key);
+    this.identifierFlags.push(0);
+    return id;
+  }
+
+  // The id of a normalized identifier, or -1 when the document never mentioned it.
+  int findIdentifier(string key) {
+    return this.identifierIds.get(key) ?? -1;
+  }
+
+  void define(string key, int flag) {
+    int id = this.identifier(key);
+    this.identifierFlags[id] = this.identifierFlags[id] | flag;
+  }
+
+  bool defines(string key, int flag) {
+    int id = this.findIdentifier(key);
+    return id >= 0 && (this.identifierFlags[id] & flag) != 0;
+  }
+
+  // Sets the document text (without BOM) and builds the line table.
+  void setSource(string source) {
+    this.source = source;
+    int[] starts = [0];
+    int index = 0;
+    while (index < source.length) {
+      int code = source.codeUnitAt(index);
+      index++;
+      if (code == 13 && index < source.length && source.codeUnitAt(index) == 10) {
+        index++;
+        starts.push(index);
+      } else if (code == 10 || code == 13) {
+        starts.push(index);
+      }
+    }
+    this.lineStarts = starts;
+  }
+
+  // The 1-based line of an offset.
+  int lineOf(int offset) {
+    int low = 0;
+    int high = this.lineStarts.length - 1;
+    while (low < high) {
+      int middle = (low + high + 1) >> 1;
+      if (this.lineStarts[middle] <= offset) {
+        low = middle;
+      } else {
+        high = middle - 1;
+      }
+    }
+    return low + 1;
+  }
+
+  // The 1-based column of an offset.
+  int columnOf(int offset) {
+    return offset - this.lineStarts[this.lineOf(offset) - 1] + 1;
+  }
+
+  // `parser[contentType](from)`, where `from` is the point at `offset`.
+  Tokenizer create(int contentType, int offset) {
+    int line = this.lineOf(offset);
+    int column = offset - this.lineStarts[line - 1] + 1;
+    Construct initial = this.documentInit;
+    if (contentType == CT_FLOW) {
+      initial = this.flowInit;
+    } else if (contentType == CT_CONTENT) {
+      initial = this.contentInit;
+    } else if (contentType == CT_STRING) {
+      initial = this.stringInit;
+    } else if (contentType == CT_TEXT) {
+      initial = this.textInit;
+    }
+    Tokenizer t = new Tokenizer(this, this.tokenizers.length, initial, line, column, offset);
+    this.tokenizers.push(t);
+    t.start();
+    return t;
+  }
+
+  bool isLazy(int line) {
+    return this.lazy.get(line) ?? false;
+  }
+}
+
+export class Tokenizer {
+  Parser parser;
+  Tokens tokens;
+  int id;
+  Construct initialize;
+  int[] codes;
+  int index;
+  int line;
+  int column;
+  int offset;
+  Map<int, int> columnStart;
+  int[] events;
+  int[] stack;
+  int previous;
+  Construct? currentConstruct;
+  ContainerState containerState;
+  bool interrupt;
+  bool contentTypeTextTrailing;
+  bool gfmTasklistFirstContentOfListItem;
+  bool gfmTableDynamicInterruptHack;
+  func(int)->void next;
+  int[] resolveAllConstructs;
+  Construct[] resolveAllOwners;
+  bool done;
+
+  init(Parser parser, int id, Construct initialize, int line, int column, int offset) {
+    this.parser = parser;
+    this.tokens = parser.tokens;
+    this.id = id;
+    this.initialize = initialize;
+    this.codes = [];
+    this.index = 0;
+    this.line = line;
+    this.column = column;
+    this.offset = offset;
+    this.columnStart = new Map<int, int>();
+    this.events = [];
+    this.stack = [];
+    this.previous = EOF;
+    this.currentConstruct = null;
+    this.containerState = new ContainerState();
+    this.interrupt = false;
+    this.contentTypeTextTrailing = false;
+    this.gfmTasklistFirstContentOfListItem = false;
+    this.gfmTableDynamicInterruptHack = false;
+    this.next = noState;
+    this.resolveAllConstructs = [];
+    this.resolveAllOwners = [];
+    this.done = false;
+  }
+
+  void start() {
+    this.next = this.initialize.tokenize(this, false, noState, noState);
+    if (this.initialize.resolveAll != 0) {
+      this.resolveAllConstructs.push(this.initialize.resolveAll);
+    }
+  }
+
+  // Feeds codes; returns true once EOF has been processed and the events are final.
+  bool write(int[] slice) {
+    if (this.codes.length == 0) {
+      // Callers hand over fresh arrays: adopt the first one instead of copying it.
+      this.codes = slice;
+    } else {
+      for (int code of slice) {
+        this.codes.push(code);
+      }
+    }
+    this.main();
+    if (this.codes.length == 0 || this.codes[this.codes.length - 1] != EOF) {
+      return false;
+    }
+    this.addResult(this.initialize, 0);
+    for (int resolver of this.resolveAllConstructs) {
+      this.events = resolvers[resolver](this.events, this);
+    }
+    this.done = true;
+    return true;
+  }
+
+  void main() {
+    while (this.index < this.codes.length) {
+      this.next(this.codes[this.index]);
+    }
+  }
+
+  // --- effects ---------------------------------------------------------------------------
+
+  void consume(int code) {
+    if (markdownLineEnding(code)) {
+      this.line++;
+      this.column = 1;
+      this.offset += if (code == CRLF) { 2 } else { 1 };
+      this.accountForPotentialSkip();
+    } else if (code != VS) {
+      this.column++;
+      this.offset++;
+    }
+    this.index++;
+    this.previous = code;
+  }
+
+  int enter(int type) {
+    int token = this.tokens.create(type, this.id);
+    this.tokens.sIndex[token] = this.index;
+    this.tokens.sOffset[token] = this.offset;
+    this.events.push(enterEvent(token));
+    this.stack.push(token);
+    return token;
+  }
+
+  int exit(int type) {
+    int token = this.stack.pop();
+    this.tokens.eIndex[token] = this.index;
+    this.tokens.eOffset[token] = this.offset;
+    this.events.push(exitEvent(token));
+    return token;
+  }
+
+  func(int)->void attempt(Construct[] list, func(int)->void ok, func(int)->void nok) {
+    return this.hook(0, list, ok, nok);
+  }
+
+  func(int)->void attemptOne(Construct construct, func(int)->void ok, func(int)->void nok) {
+    return this.hook(0, [construct], ok, nok);
+  }
+
+  func(int)->void attemptMap(ConstructMap map, func(int)->void ok, func(int)->void nok) {
+    return this.hookMap(0, map, ok, nok);
+  }
+
+  func(int)->void check(Construct[] list, func(int)->void ok, func(int)->void nok) {
+    return this.hook(1, list, ok, nok);
+  }
+
+  func(int)->void checkOne(Construct construct, func(int)->void ok, func(int)->void nok) {
+    return this.hook(1, [construct], ok, nok);
+  }
+
+  func(int)->void checkMap(ConstructMap map, func(int)->void ok, func(int)->void nok) {
+    return this.hookMap(1, map, ok, nok);
+  }
+
+  func(int)->void interruptMap(ConstructMap map, func(int)->void ok, func(int)->void nok) {
+    return this.hookMap(2, map, ok, nok);
+  }
+
+  func(int)->void interruptOne(Construct construct, func(int)->void ok, func(int)->void nok) {
+    return this.hook(2, [construct], ok, nok);
+  }
+
+  func(int)->void hookMap(int mode, ConstructMap map, func(int)->void returnState, func(int)->void bogusState) {
+    Tokenizer t = this;
+    return (int code) => {
+      t.hook(mode, map.forCode(code), returnState, bogusState)(code);
+    };
+  }
+
+  // `constructFactory(onreturn, fields)(constructs, returnState, bogusState)`; mode 0 attempt,
+  // 1 check, 2 interrupt (a check whose constructs see `interrupt`).
+  func(int)->void hook(int mode, Construct[] list, func(int)->void returnState, func(int)->void bogusState) {
+    Tokenizer t = this;
+    if (list.length == 0) {
+      return bogusState;
+    }
+    int constructIndex = 0;
+    Construct current = list[0];
+    int fromEvents = 0;
+    int savedIndex = 0;
+    int savedLine = 0;
+    int savedColumn = 0;
+    int savedOffset = 0;
+    int savedPrevious = EOF;
+    Construct? savedConstruct = null;
+    int[] savedStack = [];
+
+    func(int)->void restore = (int unused) => {
+      t.index = savedIndex;
+      t.line = savedLine;
+      t.column = savedColumn;
+      t.offset = savedOffset;
+      t.previous = savedPrevious;
+      t.currentConstruct = savedConstruct;
+      t.events.length = fromEvents;
+      t.stack = savedStack;
+      t.accountForPotentialSkip();
+    };
+
+    func(int)->void ok = (int code) => {
+      if (mode == 0) {
+        t.addResult(current, fromEvents);
+      } else {
+        restore(0);
+      }
+      t.next = returnState;
+    };
+
+    func(Construct)->func(int)->void handleConstruct = (Construct construct) => noState;
+
+    func(int)->void nok = (int code) => {
+      restore(0);
+      constructIndex++;
+      if (constructIndex < list.length) {
+        t.next = handleConstruct(list[constructIndex]);
+      } else {
+        t.next = bogusState;
+      }
+    };
+
+    handleConstruct = (Construct construct) => (int code) => {
+      fromEvents = t.events.length;
+      savedIndex = t.index;
+      savedLine = t.line;
+      savedColumn = t.column;
+      savedOffset = t.offset;
+      savedPrevious = t.previous;
+      savedConstruct = t.currentConstruct;
+      savedStack = t.stack.slice();
+      current = construct;
+      if (!construct.partial) {
+        t.currentConstruct = construct;
+      }
+      if (t.parser.constructs.disabled[construct.id]) {
+        nok(code);
+        return;
+      }
+      construct.tokenize(t, mode == 2, ok, nok)(code);
+    };
+
+    return handleConstruct(list[0]);
+  }
+
+  void addResult(Construct construct, int from) {
+    if (construct.resolveAll != 0 && !this.resolveAllConstructs.includes(construct.resolveAll)) {
+      this.resolveAllConstructs.push(construct.resolveAll);
+    }
+    if (construct.hasResolve) {
+      int[] resolved = construct.resolve(this.events.slice(from), this);
+      this.events.length = from;
+      for (int event of resolved) {
+        this.events.push(event);
+      }
+    }
+    if (construct.hasResolveTo) {
+      this.events = construct.resolveTo(this.events, this);
+    }
+  }
+
+  void defineSkip(int line, int column) {
+    this.columnStart.set(line, column);
+    this.accountForPotentialSkip();
+  }
+
+  // `defineSkip(point)` for the point at `offset`.
+  void defineSkipAt(int offset) {
+    this.defineSkip(this.parser.lineOf(offset), this.parser.columnOf(offset));
+  }
+
+  void accountForPotentialSkip() {
+    int? start = this.columnStart.get(this.line);
+    if (start != null && this.column < 2) {
+      this.column = start;
+      this.offset += start - 1;
+    }
+  }
+
+  // --- reading --------------------------------------------------------------------------
+
+  int[] sliceStream(int token) {
+    return this.codes.slice(this.tokens.sIndex[token], this.tokens.eIndex[token]);
+  }
+
+  // micromark's `serializeChunks` over the buffer between the token's start and end.
+  string sliceSerialize(int token, bool expandTabs) {
+    return this.serialize(this.tokens.sIndex[token], this.tokens.eIndex[token], this.tokens.sOffset[token], expandTabs);
+  }
+
+  // The codes in [start, end), where the code at `start` sits at source offset `offset`. When the codes
+  // are the source text character for character (no replaced NUL, no gap at a container prefix, no virtual
+  // space shown as a space, no expanded tab), that text is one slice of the source; otherwise each code is
+  // serialized as upstream does.
+  string serialize(int start, int end, int offset, bool expandTabs) {
+    string source = this.parser.source;
+    int length = source.length;
+    int at = offset;
+    bool atTab = false;
+    bool plain = true;
+    for (int index = start; index < end; index++) {
+      int code = this.codes[index];
+      if (code >= 0) {
+        if (at >= length || source.codeUnitAt(at) != code) {
+          plain = false;
+          break;
+        }
+        at++;
+        atTab = false;
+      } else if (code == VS) {
+        if (expandTabs || !atTab) {
+          plain = false;
+          break;
+        }
+      } else if (code == HT) {
+        if (expandTabs || at >= length || source.codeUnitAt(at) != 9) {
+          plain = false;
+          break;
+        }
+        at++;
+        atTab = true;
+      } else if (code == CRLF) {
+        if (at + 1 >= length || source.codeUnitAt(at) != 13 || source.codeUnitAt(at + 1) != 10) {
+          plain = false;
+          break;
+        }
+        at += 2;
+        atTab = false;
+      } else {
+        int expected = if (code == -5) { 13 } else { 10 };
+        if (at >= length || source.codeUnitAt(at) != expected) {
+          plain = false;
+          break;
+        }
+        at++;
+        atTab = false;
+      }
+    }
+    if (plain) {
+      return source.slice(offset, at);
+    }
+    return this.serializeCodes(start, end, expandTabs);
+  }
+
+  string serializeCodes(int start, int end, bool expandTabs) {
+    string result = "";
+    bool atTab = false;
+    int runStart = -1;
+    for (int index = start; index < end; index++) {
+      int code = this.codes[index];
+      if (code >= 0) {
+        atTab = false;
+        continue;
+      }
+      result += this.plain(start, index, runStart);
+      runStart = index + 1;
+      if (code == -5) {
+        result += "\r";
+      } else if (code == -4) {
+        result += "\n";
+      } else if (code == CRLF) {
+        result += "\r\n";
+      } else if (code == HT) {
+        result += if (expandTabs) { " " } else { "\t" };
+      } else if (code == VS) {
+        if (expandTabs || !atTab) {
+          result += " ";
+        }
+      }
+      atTab = code == HT || (code == VS && atTab);
+    }
+    return result + this.plain(start, end, runStart);
+  }
+
+  // The non-negative codes in [from, to), where `from` is `runStart` or the slice start.
+  string plain(int start, int to, int runStart) {
+    int from = if (runStart < 0) { start } else { runStart };
+    string text = "";
+    for (int index = from; index < to; index++) {
+      text += charOf(this.codes[index]);
+    }
+    return text;
+  }
+
+}
+
+// micromark-util-chunked `splice`, for event lists.
+export void splice(int[] list, int start, int remove, int[] items) {
+  int end = list.length;
+  int at = start;
+  if (at < 0) {
+    at = if (-at > end) { 0 } else { end + at };
+  } else if (at > end) {
+    at = end;
+  }
+  int count = if (remove > 0) { remove } else { 0 };
+  if (at + count > end) {
+    count = end - at;
+  }
+  int delta = items.length - count;
+  int oldLength = list.length;
+  if (delta > 0) {
+    int index = oldLength;
+    while (index < oldLength + delta) {
+      list.push(0);
+      index++;
+    }
+    index = oldLength - 1;
+    while (index >= at + count) {
+      list[index + delta] = list[index];
+      index--;
+    }
+  } else if (delta < 0) {
+    for (int index = at + count; index < oldLength; index++) {
+      list[index + delta] = list[index];
+    }
+    list.length = oldLength + delta;
+  }
+  for (int index = 0; index < items.length; index++) {
+    list[at + index] = items[index];
+  }
+}
+
+// micromark-util-chunked `push`.
+export int[] pushAll(int[] list, int[] items) {
+  if (list.length == 0) {
+    return items;
+  }
+  for (int item of items) {
+    list.push(item);
+  }
+  return list;
+}
+
+// `event[2].sliceSerialize(event[1], expandTabs)`: serializes a token with the tokenizer that made it.
+export string serializeToken(Parser parser, int token, bool expandTabs) {
+  return parser.tokenizers[parser.tokens.tokenizer[token]].sliceSerialize(token, expandTabs);
+}
+
+// A token made by a resolver (not by `enter`), owned by `t`.
+export int newToken(Tokenizer t, int type) {
+  return t.tokens.create(type, t.id);
+}
+
+// micromark-util-resolve-all: each distinct `resolveAll` of `constructs`, once, in order.
+export int[] resolveAllOf(Construct[] constructs, int[] events, Tokenizer t) {
+  int[] called = [];
+  int[] result = events;
+  for (Construct construct of constructs) {
+    int resolver = construct.resolveAll;
+    if (resolver != 0 && !called.includes(resolver)) {
+      result = resolvers[resolver](result, t);
+      called.push(resolver);
+    }
+  }
+  return result;
+}

@@ -1,0 +1,630 @@
+// mdast-util-to-hast 13.2.1: an mdast arena to a hast arena (CommonMark handlers; GFM adds its own).
+
+import { ALIGN_NONE, K_DELETE, K_FOOTNOTE_DEFINITION, K_FOOTNOTE_REFERENCE, K_TABLE, K_TABLE_CELL, K_TABLE_ROW, K_BLOCKQUOTE, K_BREAK, K_CODE, K_DEFINITION, K_EMPHASIS, K_HEADING, K_HTML, K_IMAGE, K_IMAGE_REFERENCE, K_INLINE_CODE, K_LINK, K_LINK_REFERENCE, K_LIST, K_LIST_ITEM, K_PARAGRAPH, K_ROOT, K_STRONG, K_TEXT, K_THEMATIC_BREAK, N_CHECKED, N_CHECKED_SET, N_HAS_POSITION, N_HAS_VALUE, N_ORDERED, N_S2_SET, N_S3_SET, N_SPREAD, N_START_SET, Tree } from "../mdast/tree.lil";
+import { normalizeUri } from "../micromark/util.lil";
+import { H_ELEMENT, H_RAW, H_ROOT, H_TEXT, HN_LANGUAGE_MATH, HN_META, HN_TASK_LIST_ITEM, KW_CHECKBOX, PROP_ALIGN, PROP_ALT, PROP_ARIA_DESCRIBED_BY, PROP_ARIA_LABEL, PROP_CHECKED, PROP_CLASS_NAME, PROP_DATA_FOOTNOTES, PROP_DATA_FOOTNOTE_BACKREF, PROP_DATA_FOOTNOTE_REF, PROP_DISABLED, PROP_HREF, PROP_ID, PROP_SRC, PROP_START, PROP_TITLE, PROP_TYPE, TAG_A, TAG_BLOCKQUOTE, TAG_BR, TAG_CODE, TAG_DEL, TAG_DIV, TAG_EM, TAG_H1, TAG_H2, TAG_HR, TAG_IMG, TAG_INPUT, TAG_LI, TAG_NONE, TAG_OL, TAG_P, TAG_PRE, TAG_SECTION, TAG_STRONG, TAG_SUP, TAG_TABLE, TAG_TBODY, TAG_TD, TAG_TH, TAG_THEAD, TAG_TR, TAG_UL, Hast } from "./hast.lil";
+
+func(ToHast, int, int)->int[] unknownHandler = (ToHast state, int node, int parent) => {
+  Tree m = state.mdast;
+  if (m.has(node, N_HAS_VALUE)) {
+    int text = state.hast.text(m.s1[node]);
+    state.patch(node, text);
+    return [text];
+  }
+  return [state.element(node, TAG_DIV, state.all(node))];
+};
+
+export class ToHast {
+  Tree mdast;
+  Hast hast;
+  bool allowDangerousHtml;
+  // By identifier id (the mdast tree's interned identifiers): the first definition and footnote
+  // definition (-1: none), how often a footnote was referenced, and its 1-based call order (0: none).
+  int[] definitionOf;
+  int[] footnoteOf;
+  int[] footnoteCounts;
+  int[] footnoteIndex;
+  int[] footnoteOrder;
+  string clobberPrefix;
+  string footnoteLabel;
+  int footnoteLabelTag;
+  (func(ToHast, int, int)->int[])[] handlers;
+  // Set by handlers that return several nodes (upstream returns an array).
+  bool multiple;
+
+  init(Tree mdast, bool allowDangerousHtml) {
+    this.mdast = mdast;
+    this.hast = new Hast();
+    this.hast.lineStarts = mdast.lineStarts;
+    this.allowDangerousHtml = allowDangerousHtml;
+    this.definitionOf = [];
+    this.footnoteOf = [];
+    this.footnoteCounts = [];
+    this.footnoteIndex = [];
+    for (int id = 0; id < mdast.identifiers.length; id++) {
+      this.definitionOf.push(-1);
+      this.footnoteOf.push(-1);
+      this.footnoteCounts.push(0);
+      this.footnoteIndex.push(0);
+    }
+    this.footnoteOrder = [];
+    this.clobberPrefix = "user-content-";
+    this.footnoteLabel = "Footnotes";
+    this.footnoteLabelTag = TAG_H2;
+    this.handlers = [];
+    this.multiple = false;
+  }
+
+  void on(int kind, func(ToHast, int, int)->int[] handle) {
+    while (this.handlers.length <= kind) {
+      this.handlers.push(unknownHandler);
+    }
+    this.handlers[kind] = handle;
+  }
+
+  void collectDefinitions(int node) {
+    int kind = this.mdast.kind[node];
+    // Upstream keys these by `identifier.toUpperCase()`, which is the identifier's normalized key: one id.
+    if (kind == K_DEFINITION || kind == K_FOOTNOTE_DEFINITION) {
+      int[] map = if (kind == K_DEFINITION) { this.definitionOf } else { this.footnoteOf };
+      int id = this.mdast.identifier[node];
+      if (map[id] < 0) {
+        map[id] = node;
+      }
+    }
+    int child = this.mdast.firstChild[node];
+    while (child >= 0) {
+      this.collectDefinitions(child);
+      child = this.mdast.nextSibling[child];
+    }
+  }
+
+  int[] one(int node, int parent) {
+    int kind = this.mdast.kind[node];
+    this.multiple = false;
+    if (kind < this.handlers.length) {
+      return this.handlers[kind](this, node, parent);
+    }
+    return unknownHandler(this, node, parent);
+  }
+
+  int[] all(int parent) {
+    int[] values = [];
+    int child = this.mdast.firstChild[parent];
+    int previous = -1;
+    while (child >= 0) {
+      int[] result = this.one(child, parent);
+      bool multiple = this.multiple;
+      if (result.length > 0) {
+        if (previous >= 0 && this.mdast.kind[previous] == K_BREAK && !multiple) {
+          int single = result[0];
+          if (this.hast.kind[single] == H_TEXT) {
+            this.hast.value[single] = trimMarkdownSpaceStart(this.hast.value[single]);
+          }
+          if (this.hast.kind[single] == H_ELEMENT) {
+            int head = this.hast.firstChild[single];
+            if (head >= 0 && this.hast.kind[head] == H_TEXT) {
+              this.hast.value[head] = trimMarkdownSpaceStart(this.hast.value[head]);
+            }
+          }
+        }
+        for (int value of result) {
+          values.push(value);
+        }
+      }
+      previous = child;
+      child = this.mdast.nextSibling[child];
+    }
+    return values;
+  }
+
+  // `state.patch(from, to)`.
+  void patch(int from, int to) {
+    Tree m = this.mdast;
+    if (m.has(from, N_HAS_POSITION)) {
+      this.hast.copyPosition(to, m.sOffset[from], m.eOffset[from]);
+    }
+  }
+
+  // An element with `children`, patched from `node`.
+  int element(int node, int tag, int[] children) {
+    int result = this.hast.element(tag);
+    this.hast.appendAll(result, children);
+    this.patch(node, result);
+    return result;
+  }
+
+  int[] wrap(int[] nodes, bool loose) {
+    int[] result = [];
+    if (loose) {
+      result.push(this.hast.text("\n"));
+    }
+    for (int index = 0; index < nodes.length; index++) {
+      if (index > 0) {
+        result.push(this.hast.text("\n"));
+      }
+      result.push(nodes[index]);
+    }
+    if (loose && nodes.length > 0) {
+      result.push(this.hast.text("\n"));
+    }
+    return result;
+  }
+}
+
+string trimMarkdownSpaceStart(string value) {
+  int index = 0;
+  while (index < value.length && (value.codeUnitAt(index) == 9 || value.codeUnitAt(index) == 32)) {
+    index++;
+  }
+  return value.slice(index);
+}
+
+// trim-lines.
+string trimLine(string value, bool start, bool end) {
+  int startIndex = 0;
+  int endIndex = value.length;
+  if (start) {
+    while (startIndex < endIndex && (value.codeUnitAt(startIndex) == 9 || value.codeUnitAt(startIndex) == 32)) {
+      startIndex++;
+    }
+  }
+  if (end) {
+    while (endIndex > startIndex && (value.codeUnitAt(endIndex - 1) == 9 || value.codeUnitAt(endIndex - 1) == 32)) {
+      endIndex--;
+    }
+  }
+  return if (endIndex > startIndex) { value.slice(startIndex, endIndex) } else { "" };
+}
+
+export string trimLines(string source) {
+  string result = "";
+  int last = 0;
+  int index = 0;
+  while (index < source.length) {
+    int code = source.codeUnitAt(index);
+    if (code == 10 || code == 13) {
+      int end = if (code == 13 && index + 1 < source.length && source.codeUnitAt(index + 1) == 10) { index + 2 } else { index + 1 };
+      result += trimLine(source.slice(last, index), last > 0, true) + source.slice(index, end);
+      last = end;
+      index = end;
+    } else {
+      index++;
+    }
+  }
+  return result + trimLine(source.slice(last), last > 0, false);
+}
+
+func(ToHast, int, int)->int[] ignore = (ToHast state, int node, int parent) => {
+  int[] none = [];
+  return none;
+};
+
+// Upstream's `revert` for references without a definition.
+int[] revert(ToHast state, int node) {
+  Tree m = state.mdast;
+  Hast h = state.hast;
+  int subtype = m.num[node];
+  string suffix = "]";
+  if (subtype == 1) {
+    suffix += "[]";
+  } else if (subtype == 2) {
+    suffix += "[" + (if (m.label[node] != "") { m.label[node] } else { m.identifiers[m.identifier[node]] }) + "]";
+  }
+  if (m.kind[node] == K_IMAGE_REFERENCE) {
+    string alt = if (m.has(node, N_S3_SET)) { m.s3[node] } else { "null" };
+    state.multiple = true;
+    return [h.text("![" + alt + suffix)];
+  }
+  int[] contents = state.all(node);
+  if (contents.length > 0 && h.kind[contents[0]] == H_TEXT) {
+    h.value[contents[0]] = "[" + h.value[contents[0]];
+  } else {
+    contents = [h.text("["), ...contents];
+  }
+  int tail = contents[contents.length - 1];
+  if (h.kind[tail] == H_TEXT) {
+    h.value[tail] = h.value[tail] + suffix;
+  } else {
+    contents.push(h.text(suffix));
+  }
+  state.multiple = true;
+  return contents;
+}
+
+bool listItemLoose(Tree m, int node) {
+  return m.has(node, N_SPREAD);
+}
+
+bool listLoose(Tree m, int node) {
+  bool loose = false;
+  if (m.kind[node] == K_LIST) {
+    loose = m.has(node, N_SPREAD);
+    int child = m.firstChild[node];
+    while (!loose && child >= 0) {
+      loose = listItemLoose(m, child);
+      child = m.nextSibling[child];
+    }
+  }
+  return loose;
+}
+
+bool isParagraph(Hast h, int node) {
+  return h.isElement(node, TAG_P);
+}
+
+Regex lineEndings = new Regex("\\r?\\n|\\r", "g");
+Regex whitespace = new Regex("\\s+", "");
+
+export void installCommonmark(ToHast state) {
+  state.on(K_ROOT, (ToHast state, int node, int parent) => {
+    int result = state.hast.create(H_ROOT, TAG_NONE, "");
+    state.hast.appendAll(result, state.wrap(state.all(node), false));
+    state.patch(node, result);
+    return [result];
+  });
+  state.on(K_BLOCKQUOTE, (ToHast state, int node, int parent) => [state.element(node, TAG_BLOCKQUOTE, state.wrap(state.all(node), true))]);
+  state.on(K_BREAK, (ToHast state, int node, int parent) => {
+    int[] none = [];
+    int br = state.element(node, TAG_BR, none);
+    state.multiple = true;
+    return [br, state.hast.text("\n")];
+  });
+  state.on(K_CODE, (ToHast state, int node, int parent) => {
+    Tree m = state.mdast;
+    Hast h = state.hast;
+    string value = if (m.s1[node] != "") { m.s1[node] + "\n" } else { "" };
+    int code = h.element(TAG_CODE);
+    if (m.has(node, N_S2_SET) && m.s2[node] != "") {
+      JsValue lang = m.s2[node];
+      string first = JS.assume(JS.invoke(lang, "split", whitespace)[0]);
+      h.setList(code, PROP_CLASS_NAME, "language-" + first);
+      if (first == "math") {
+        h.flags[code] = h.flags[code] | HN_LANGUAGE_MATH;
+      }
+    }
+    h.append(code, h.text(value));
+    if (m.has(node, N_S3_SET) && m.s3[node] != "") {
+      h.meta[code] = m.s3[node];
+      h.flags[code] = h.flags[code] | HN_META;
+    }
+    state.patch(node, code);
+    int pre = h.element(TAG_PRE);
+    h.append(pre, code);
+    state.patch(node, pre);
+    return [pre];
+  });
+  state.on(K_DEFINITION, ignore);
+  state.on(K_EMPHASIS, (ToHast state, int node, int parent) => [state.element(node, TAG_EM, state.all(node))]);
+  state.on(K_HEADING, (ToHast state, int node, int parent) => [state.element(node, TAG_H1 + state.mdast.num[node] - 1, state.all(node))]);
+  state.on(K_HTML, (ToHast state, int node, int parent) => {
+    if (state.allowDangerousHtml) {
+      int raw = state.hast.create(H_RAW, TAG_NONE, state.mdast.s1[node]);
+      state.patch(node, raw);
+      return [raw];
+    }
+    return [];
+  });
+  state.on(K_IMAGE_REFERENCE, (ToHast state, int node, int parent) => {
+    Tree m = state.mdast;
+    int definition = state.definitionOf[m.identifier[node]];
+    if (definition < 0) {
+      return revert(state, node);
+    }
+    int img = state.hast.element(TAG_IMG);
+    state.hast.setString(img, PROP_SRC, normalizeUri(m.s1[definition]));
+    state.hast.setString(img, PROP_ALT, if (m.has(node, N_S3_SET)) { m.s3[node] } else { "null" });
+    if (m.has(definition, N_S2_SET)) {
+      state.hast.setString(img, PROP_TITLE, m.s2[definition]);
+    }
+    state.patch(node, img);
+    return [img];
+  });
+  state.on(K_IMAGE, (ToHast state, int node, int parent) => {
+    Tree m = state.mdast;
+    int img = state.hast.element(TAG_IMG);
+    state.hast.setString(img, PROP_SRC, normalizeUri(m.s1[node]));
+    if (m.has(node, N_S3_SET)) {
+      state.hast.setString(img, PROP_ALT, m.s3[node]);
+    }
+    if (m.has(node, N_S2_SET)) {
+      state.hast.setString(img, PROP_TITLE, m.s2[node]);
+    }
+    state.patch(node, img);
+    return [img];
+  });
+  state.on(K_INLINE_CODE, (ToHast state, int node, int parent) => {
+    int text = state.hast.text(state.mdast.s1[node].replace(lineEndings, " "));
+    state.patch(node, text);
+    return [state.element(node, TAG_CODE, [text])];
+  });
+  state.on(K_LINK_REFERENCE, (ToHast state, int node, int parent) => {
+    Tree m = state.mdast;
+    int definition = state.definitionOf[m.identifier[node]];
+    if (definition < 0) {
+      return revert(state, node);
+    }
+    int a = state.hast.element(TAG_A);
+    state.hast.setString(a, PROP_HREF, normalizeUri(m.s1[definition]));
+    if (m.has(definition, N_S2_SET)) {
+      state.hast.setString(a, PROP_TITLE, m.s2[definition]);
+    }
+    state.hast.appendAll(a, state.all(node));
+    state.patch(node, a);
+    return [a];
+  });
+  state.on(K_LINK, (ToHast state, int node, int parent) => {
+    Tree m = state.mdast;
+    int a = state.hast.element(TAG_A);
+    state.hast.setString(a, PROP_HREF, normalizeUri(m.s1[node]));
+    if (m.has(node, N_S2_SET)) {
+      state.hast.setString(a, PROP_TITLE, m.s2[node]);
+    }
+    state.hast.appendAll(a, state.all(node));
+    state.patch(node, a);
+    return [a];
+  });
+  state.on(K_LIST_ITEM, (ToHast state, int node, int parent) => {
+    Tree m = state.mdast;
+    Hast h = state.hast;
+    int[] results = state.all(node);
+    bool loose = if (parent >= 0) { listLoose(m, parent) } else { listItemLoose(m, node) };
+    int li = h.element(TAG_LI);
+    if (m.has(node, N_CHECKED_SET)) {
+      int paragraph = -1;
+      if (results.length > 0 && isParagraph(h, results[0])) {
+        paragraph = results[0];
+      } else {
+        paragraph = h.element(TAG_P);
+        results = [paragraph, ...results];
+      }
+      if (h.firstChild[paragraph] >= 0) {
+        h.prepend(paragraph, h.text(" "));
+      }
+      int input = h.element(TAG_INPUT);
+      h.setKeyword(input, PROP_TYPE, KW_CHECKBOX);
+      h.setBoolean(input, PROP_CHECKED, m.has(node, N_CHECKED));
+      h.setBoolean(input, PROP_DISABLED, true);
+      h.prepend(paragraph, input);
+      h.setList(li, PROP_CLASS_NAME, "task-list-item");
+      h.flags[li] = h.flags[li] | HN_TASK_LIST_ITEM;
+    }
+    for (int index = 0; index < results.length; index++) {
+      int child = results[index];
+      if (loose || index != 0 || !isParagraph(h, child)) {
+        h.append(li, h.text("\n"));
+      }
+      if (isParagraph(h, child) && !loose) {
+        for (int grandchild of h.children(child)) {
+          h.append(li, grandchild);
+        }
+      } else {
+        h.append(li, child);
+      }
+    }
+    if (results.length > 0) {
+      int tail = results[results.length - 1];
+      if (loose || !isParagraph(h, tail)) {
+        h.append(li, h.text("\n"));
+      }
+    }
+    state.patch(node, li);
+    return [li];
+  });
+  state.on(K_LIST, (ToHast state, int node, int parent) => {
+    Tree m = state.mdast;
+    Hast h = state.hast;
+    int list = h.element(if (m.has(node, N_ORDERED)) { TAG_OL } else { TAG_UL });
+    int[] results = state.all(node);
+    if (m.has(node, N_START_SET) && m.num[node] != 1) {
+      h.setNumber(list, PROP_START, m.num[node]);
+    }
+    // Upstream looks for an `li` whose `className` has `task-list-item`: the item handler flags those.
+    for (int child of results) {
+      if (h.isElement(child, TAG_LI) && h.has(child, HN_TASK_LIST_ITEM)) {
+        h.setList(list, PROP_CLASS_NAME, "contains-task-list");
+        break;
+      }
+    }
+    h.appendAll(list, state.wrap(results, true));
+    state.patch(node, list);
+    return [list];
+  });
+  state.on(K_PARAGRAPH, (ToHast state, int node, int parent) => [state.element(node, TAG_P, state.all(node))]);
+  state.on(K_STRONG, (ToHast state, int node, int parent) => [state.element(node, TAG_STRONG, state.all(node))]);
+  state.on(K_TEXT, (ToHast state, int node, int parent) => {
+    int text = state.hast.text(trimLines(state.mdast.s1[node]));
+    state.patch(node, text);
+    return [text];
+  });
+  state.on(K_THEMATIC_BREAK, (ToHast state, int node, int parent) => {
+    int[] none = [];
+    return [state.element(node, TAG_HR, none)];
+  });
+}
+
+// --- GFM: delete, tables, footnotes -----------------------------------------------------------
+
+export void installGfm(ToHast state) {
+  state.on(K_DELETE, (ToHast state, int node, int parent) => [state.element(node, TAG_DEL, state.all(node))]);
+  state.on(K_FOOTNOTE_DEFINITION, ignore);
+  state.on(K_TABLE_CELL, (ToHast state, int node, int parent) => [state.element(node, TAG_TD, state.all(node))]);
+  state.on(K_TABLE_ROW, (ToHast state, int node, int parent) => {
+    Tree m = state.mdast;
+    Hast h = state.hast;
+    bool first = parent >= 0 && m.firstChild[parent] == node;
+    int tag = if (parent >= 0 && first) { TAG_TH } else { TAG_TD };
+    bool hasAlign = parent >= 0 && m.kind[parent] == K_TABLE;
+    int[] cells = [];
+    int[] cellNodes = [];
+    int child = m.firstChild[node];
+    while (child >= 0) {
+      cellNodes.push(child);
+      child = m.nextSibling[child];
+    }
+    int length = if (hasAlign) { m.alignCount(parent) } else { cellNodes.length };
+    for (int cellIndex = 0; cellIndex < length; cellIndex++) {
+      int result = h.element(tag);
+      // `KW_LEFT`, `KW_CENTER` and `KW_RIGHT` equal mdast's alignments.
+      int align = if (hasAlign) { m.alignAt(parent, cellIndex) } else { ALIGN_NONE };
+      if (align != ALIGN_NONE) {
+        h.setKeyword(result, PROP_ALIGN, align);
+      }
+      if (cellIndex < cellNodes.length) {
+        int cell = cellNodes[cellIndex];
+        h.appendAll(result, state.all(cell));
+        state.patch(cell, result);
+      }
+      cells.push(result);
+    }
+    return [state.element(node, TAG_TR, state.wrap(cells, true))];
+  });
+  state.on(K_TABLE, (ToHast state, int node, int parent) => {
+    Tree m = state.mdast;
+    Hast h = state.hast;
+    int[] rows = state.all(node);
+    int[] content = [];
+    if (rows.length > 0) {
+      int head = h.element(TAG_THEAD);
+      h.appendAll(head, state.wrap([rows[0]], true));
+      state.patch(m.firstChild[node], head);
+      content.push(head);
+    }
+    if (rows.length > 1) {
+      int body = h.element(TAG_TBODY);
+      h.appendAll(body, state.wrap(rows.slice(1), true));
+      int second = m.nextSibling[m.firstChild[node]];
+      int last = m.lastChild[node];
+      if (m.has(second, N_HAS_POSITION) && m.has(last, N_HAS_POSITION)) {
+        h.copyPosition(body, m.sOffset[second], m.eOffset[last]);
+      }
+      content.push(body);
+    }
+    return [state.element(node, TAG_TABLE, state.wrap(content, true))];
+  });
+  state.on(K_FOOTNOTE_REFERENCE, (ToHast state, int node, int parent) => {
+    Tree m = state.mdast;
+    Hast h = state.hast;
+    // Upstream's key is `identifier.toUpperCase()`, and `key.toLowerCase()` is the identifier again.
+    int id = m.identifier[node];
+    string safeId = normalizeUri(m.identifiers[id]);
+    int counter = state.footnoteIndex[id];
+    if (counter == 0) {
+      state.footnoteOrder.push(id);
+      counter = state.footnoteOrder.length;
+      state.footnoteIndex[id] = counter;
+    }
+    int reuseCounter = state.footnoteCounts[id] + 1;
+    state.footnoteCounts[id] = reuseCounter;
+    int link = h.element(TAG_A);
+    h.setString(link, PROP_HREF, "#" + state.clobberPrefix + "fn-" + safeId);
+    h.setString(link, PROP_ID, state.clobberPrefix + "fnref-" + safeId + (if (reuseCounter > 1) { "-" + reuseCounter } else { "" }));
+    h.setBoolean(link, PROP_DATA_FOOTNOTE_REF, true);
+    h.setList(link, PROP_ARIA_DESCRIBED_BY, "footnote-label");
+    h.append(link, h.text("" + counter));
+    state.patch(node, link);
+    int sup = h.element(TAG_SUP);
+    h.append(sup, link);
+    state.patch(node, sup);
+    return [sup];
+  });
+}
+
+// mdast-util-to-hast's `footer`: the footnote section, or -1.
+export int footer(ToHast state) {
+  Tree m = state.mdast;
+  Hast h = state.hast;
+  int[] listItems = [];
+  for (int referenceIndex = 0; referenceIndex < state.footnoteOrder.length; referenceIndex++) {
+    int definition = state.footnoteOf[state.footnoteOrder[referenceIndex]];
+    if (definition < 0) {
+      continue;
+    }
+    int[] content = state.all(definition);
+    int id = m.identifier[definition];
+    string safeId = normalizeUri(m.identifiers[id]);
+    int[] backReferences = [];
+    int counts = state.footnoteCounts[id];
+    for (int rereferenceIndex = 1; rereferenceIndex <= counts; rereferenceIndex++) {
+      if (backReferences.length > 0) {
+        backReferences.push(h.text(" "));
+      }
+      int back = h.element(TAG_A);
+      h.setString(back, PROP_HREF, "#" + state.clobberPrefix + "fnref-" + safeId + (if (rereferenceIndex > 1) { "-" + rereferenceIndex } else { "" }));
+      h.setString(back, PROP_DATA_FOOTNOTE_BACKREF, "");
+      h.setString(back, PROP_ARIA_LABEL, "Back to reference " + (referenceIndex + 1) + (if (rereferenceIndex > 1) { "-" + rereferenceIndex } else { "" }));
+      h.setList(back, PROP_CLASS_NAME, "data-footnote-backref");
+      h.append(back, h.text("↩"));
+      if (rereferenceIndex > 1) {
+        int sup = h.element(TAG_SUP);
+        h.append(sup, h.text("" + rereferenceIndex));
+        h.append(back, sup);
+      }
+      backReferences.push(back);
+    }
+    int tail = if (content.length > 0) { content[content.length - 1] } else { -1 };
+    if (tail >= 0 && h.isElement(tail, TAG_P)) {
+      int tailTail = h.lastChild[tail];
+      if (tailTail >= 0 && h.kind[tailTail] == H_TEXT) {
+        h.value[tailTail] = h.value[tailTail] + " ";
+      } else {
+        h.append(tail, h.text(" "));
+      }
+      h.appendAll(tail, backReferences);
+    } else {
+      for (int back of backReferences) {
+        content.push(back);
+      }
+    }
+    int listItem = h.element(TAG_LI);
+    h.setString(listItem, PROP_ID, state.clobberPrefix + "fn-" + safeId);
+    h.appendAll(listItem, state.wrap(content, true));
+    state.patch(definition, listItem);
+    listItems.push(listItem);
+  }
+  if (listItems.length == 0) {
+    return -1;
+  }
+  int section = h.element(TAG_SECTION);
+  h.setBoolean(section, PROP_DATA_FOOTNOTES, true);
+  h.setList(section, PROP_CLASS_NAME, "footnotes");
+  int label = h.element(state.footnoteLabelTag);
+  h.setList(label, PROP_CLASS_NAME, "sr-only");
+  h.setString(label, PROP_ID, "footnote-label");
+  h.append(label, h.text(state.footnoteLabel));
+  h.append(section, label);
+  h.append(section, h.text("\n"));
+  int ol = h.element(TAG_OL);
+  h.appendAll(ol, state.wrap(listItems, true));
+  h.append(section, ol);
+  h.append(section, h.text("\n"));
+  return section;
+}
+
+// `toHast(tree, {allowDangerousHtml})`: the hast root is the returned node of `state.hast`.
+export int toHast(ToHast state) {
+  state.collectDefinitions(0);
+  int[] result = state.one(0, -1);
+  int foot = footer(state);
+  int root = -1;
+  if (result.length == 1 && state.hast.kind[result[0]] == H_ROOT) {
+    root = result[0];
+  } else {
+    root = state.hast.create(H_ROOT, TAG_NONE, "");
+    state.hast.appendAll(root, result);
+  }
+  if (foot >= 0) {
+    state.hast.append(root, state.hast.text("\n"));
+    state.hast.append(root, foot);
+  }
+  return root;
+}
+
+// Converts `mdast` (root at node 0) with the CommonMark and GFM handlers, as upstream's defaults do.
+// Returns the state; its `hast` holds the tree, whose root is the returned `root`.
+export ToHast toHastTree(Tree mdast, bool allowDangerousHtml) {
+  ToHast state = new ToHast(mdast, allowDangerousHtml);
+  installCommonmark(state);
+  installGfm(state);
+  return state;
+}

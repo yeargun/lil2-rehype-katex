@@ -1,0 +1,39 @@
+# The browser build (the `browser` condition): named character references are decoded by the document.
+# lil2-mdast-util-to-hast: typed, flat mdast-util-to-hast. Compiler-owned delivery.
+[policy]
+version = 3
+
+[policy.tactics]
+# Permit one-time constant-table decoding (the entity table) for smaller downloads.
+startup-reconstruction = "on"
+recurring-reconstruction = "off"
+string-array-packing = "off"
+
+[javascript]
+priority = "size-first"
+assume_pristine_builtins = true
+strip_debug = true
+assume_pure_property_reads = true
+assume_unconstructed_callbacks = true
+
+[effort]
+level = 15
+
+[objective]
+codecs = "brotli"
+
+[mangle]
+identifiers = true
+properties = true
+pool_strings = true
+
+[defines]
+BROWSER = true
+
+[delivery]
+mode = "single"
+directory = "dist/browser"
+entry_names = "rehype-katex.js"
+
+[delivery.entries]
+index = "src/index.lil"

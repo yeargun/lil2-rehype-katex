@@ -1,0 +1,32 @@
+// What mdast-util-to-hast makes of mdast-util-math's nodes through their `data` (its unknown-node handler
+// plus `applyData`): `math` becomes `<pre><code class="language-math math-display">` and `inlineMath`
+// `<code class="language-math math-inline">`, positioned like the node; the inner nodes have no position.
+// The elements carry rehype-katex's int flags.
+
+import { Tree } from "../mdast/tree.lil";
+import { HN_LANGUAGE_MATH, HN_MATH_DISPLAY, HN_MATH_INLINE, PROP_CLASS_NAME, TAG_CODE, TAG_PRE, Hast } from "../hast/hast.lil";
+import { ToHast } from "../hast/to-hast.lil";
+import { K_INLINE_MATH, K_MATH } from "./ids.lil";
+
+export void installMathToHast(ToHast state) {
+  state.on(K_MATH, (ToHast state, int node, int parent) => {
+    Hast h = state.hast;
+    int pre = h.element(TAG_PRE);
+    state.patch(node, pre);
+    int code = h.element(TAG_CODE);
+    h.setList(code, PROP_CLASS_NAME, "language-math math-display");
+    h.flags[code] = h.flags[code] | HN_LANGUAGE_MATH | HN_MATH_DISPLAY;
+    h.append(code, h.text(state.mdast.s1[node]));
+    h.append(pre, code);
+    return [pre];
+  });
+  state.on(K_INLINE_MATH, (ToHast state, int node, int parent) => {
+    Hast h = state.hast;
+    int code = h.element(TAG_CODE);
+    state.patch(node, code);
+    h.setList(code, PROP_CLASS_NAME, "language-math math-inline");
+    h.flags[code] = h.flags[code] | HN_LANGUAGE_MATH | HN_MATH_INLINE;
+    h.append(code, h.text(state.mdast.s1[node]));
+    return [code];
+  });
+}

@@ -1,0 +1,23 @@
+// The math range of the family's int vocabularies: token types (from `TYPES_MATH`), construct ids (from
+// `CONSTRUCTS_MATH`) and mdast kinds (from `KINDS_MATH`).
+
+import { TYPES_MATH } from "../micromark/types.lil";
+import { CONSTRUCTS_MATH } from "../micromark/tokenizer.lil";
+import { KINDS_MATH } from "../mdast/tree.lil";
+
+export const int tMathFlow = TYPES_MATH;
+export const int tMathFlowFence = TYPES_MATH + 1;
+export const int tMathFlowFenceSequence = TYPES_MATH + 2;
+export const int tMathFlowFenceMeta = TYPES_MATH + 3;
+export const int tMathFlowValue = TYPES_MATH + 4;
+export const int tMathText = TYPES_MATH + 5;
+export const int tMathTextSequence = TYPES_MATH + 6;
+export const int tMathTextData = TYPES_MATH + 7;
+export const int tMathTextPadding = TYPES_MATH + 8;
+
+export const int C_MATH_FLOW = CONSTRUCTS_MATH;
+export const int C_MATH_TEXT = CONSTRUCTS_MATH + 1;
+
+// mdast-util-math: `math` (s1 value, s3 meta when N_S3_SET) and `inlineMath` (s1 value).
+export const int K_MATH = KINDS_MATH;
+export const int K_INLINE_MATH = KINDS_MATH + 1;

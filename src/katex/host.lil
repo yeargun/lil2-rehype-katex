@@ -1,0 +1,4 @@
+// KaTeX, the one host module rehype-katex uses. An entry imports this first: a host module must evaluate
+// before any module of the program initializes, as ES module order then requires.
+import extern {default as katex} from "katex";
+export extern JsValue katex;

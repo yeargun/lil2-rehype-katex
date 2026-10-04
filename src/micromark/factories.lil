@@ -1,0 +1,286 @@
+// micromark-factory-space, -whitespace, -label, -title, -destination.
+
+import { EOF, SPACE, asciiControl, markdownLineEnding, markdownLineEndingOrSpace, markdownSpace } from "./codes.lil";
+import { tChunkString, tLineEnding, tLinePrefix, tLineSuffix } from "./types.lil";
+import { CT_STRING, Tokenizer, noState } from "./tokenizer.lil";
+
+// `max` 0 means no limit.
+export func(int)->void factorySpace(Tokenizer t, func(int)->void ok, int type, int max) {
+  int limit = if (max > 0) { max - 1 } else { 2147483647 };
+  int size = 0;
+  func(int)->void prefix = noState;
+  prefix = (int code) => {
+    if (markdownSpace(code) && size++ < limit) {
+      t.consume(code);
+      t.next = prefix;
+      return;
+    }
+    t.exit(type);
+    ok(code);
+  };
+  return (int code) => {
+    if (markdownSpace(code)) {
+      t.enter(type);
+      prefix(code);
+      return;
+    }
+    ok(code);
+  };
+}
+
+export func(int)->void factoryWhitespace(Tokenizer t, func(int)->void ok) {
+  bool seen = false;
+  func(int)->void start = noState;
+  start = (int code) => {
+    if (markdownLineEnding(code)) {
+      t.enter(tLineEnding);
+      t.consume(code);
+      t.exit(tLineEnding);
+      seen = true;
+      t.next = start;
+      return;
+    }
+    if (markdownSpace(code)) {
+      factorySpace(t, start, if (seen) { tLinePrefix } else { tLineSuffix }, 0)(code);
+      return;
+    }
+    ok(code);
+  };
+  return start;
+}
+
+const int LINK_REFERENCE_SIZE_MAX = 999;
+
+export func(int)->void factoryLabel(Tokenizer t, func(int)->void ok, func(int)->void nok, int type, int markerType, int stringType) {
+  int size = 0;
+  bool seen = false;
+  func(int)->void atBreak = noState;
+  func(int)->void labelInside = noState;
+  func(int)->void labelEscape = (int code) => {
+    if (code == 91 || code == 92 || code == 93) {
+      t.consume(code);
+      size++;
+      t.next = labelInside;
+      return;
+    }
+    labelInside(code);
+  };
+  labelInside = (int code) => {
+    if (code == EOF || code == 91 || code == 93 || markdownLineEnding(code) || size++ > LINK_REFERENCE_SIZE_MAX) {
+      t.exit(tChunkString);
+      atBreak(code);
+      return;
+    }
+    t.consume(code);
+    if (!seen) {
+      seen = !markdownSpace(code);
+    }
+    t.next = if (code == 92) { labelEscape } else { labelInside };
+  };
+  atBreak = (int code) => {
+    if (size > LINK_REFERENCE_SIZE_MAX || code == EOF || code == 91 || (code == 93 && !seen) ||
+        (code == 94 && size == 0 && t.parser.constructs.hiddenFootnoteSupport)) {
+      nok(code);
+      return;
+    }
+    if (code == 93) {
+      t.exit(stringType);
+      t.enter(markerType);
+      t.consume(code);
+      t.exit(markerType);
+      t.exit(type);
+      t.next = ok;
+      return;
+    }
+    if (markdownLineEnding(code)) {
+      t.enter(tLineEnding);
+      t.consume(code);
+      t.exit(tLineEnding);
+      t.next = atBreak;
+      return;
+    }
+    int chunk = t.enter(tChunkString);
+    t.tokens.contentType[chunk] = CT_STRING;
+    labelInside(code);
+  };
+  return (int code) => {
+    t.enter(type);
+    t.enter(markerType);
+    t.consume(code);
+    t.exit(markerType);
+    t.enter(stringType);
+    t.next = atBreak;
+  };
+}
+
+export func(int)->void factoryTitle(Tokenizer t, func(int)->void ok, func(int)->void nok, int type, int markerType, int stringType) {
+  int marker = 0;
+  func(int)->void begin = noState;
+  func(int)->void atBreak = noState;
+  func(int)->void inside = noState;
+  func(int)->void escape = (int code) => {
+    if (code == marker || code == 92) {
+      t.consume(code);
+      t.next = inside;
+      return;
+    }
+    inside(code);
+  };
+  inside = (int code) => {
+    if (code == marker || code == EOF || markdownLineEnding(code)) {
+      t.exit(tChunkString);
+      atBreak(code);
+      return;
+    }
+    t.consume(code);
+    t.next = if (code == 92) { escape } else { inside };
+  };
+  atBreak = (int code) => {
+    if (code == marker) {
+      t.exit(stringType);
+      begin(marker);
+      return;
+    }
+    if (code == EOF) {
+      nok(code);
+      return;
+    }
+    if (markdownLineEnding(code)) {
+      t.enter(tLineEnding);
+      t.consume(code);
+      t.exit(tLineEnding);
+      t.next = factorySpace(t, atBreak, tLinePrefix, 0);
+      return;
+    }
+    int chunk = t.enter(tChunkString);
+    t.tokens.contentType[chunk] = CT_STRING;
+    inside(code);
+  };
+  begin = (int code) => {
+    if (code == marker) {
+      t.enter(markerType);
+      t.consume(code);
+      t.exit(markerType);
+      t.exit(type);
+      t.next = ok;
+      return;
+    }
+    t.enter(stringType);
+    atBreak(code);
+  };
+  return (int code) => {
+    if (code == 34 || code == 39 || code == 40) {
+      t.enter(type);
+      t.enter(markerType);
+      t.consume(code);
+      t.exit(markerType);
+      marker = if (code == 40) { 41 } else { code };
+      t.next = begin;
+      return;
+    }
+    nok(code);
+  };
+}
+
+// `max` 0 means no limit.
+export func(int)->void factoryDestination(Tokenizer t, func(int)->void ok, func(int)->void nok, int type, int literalType, int literalMarkerType, int rawType, int stringType, int max) {
+  int limit = if (max > 0) { max } else { 2147483647 };
+  int balance = 0;
+  func(int)->void enclosedBefore = noState;
+  func(int)->void enclosed = noState;
+  func(int)->void raw = noState;
+  func(int)->void enclosedEscape = (int code) => {
+    if (code == 60 || code == 62 || code == 92) {
+      t.consume(code);
+      t.next = enclosed;
+      return;
+    }
+    enclosed(code);
+  };
+  enclosed = (int code) => {
+    if (code == 62) {
+      t.exit(tChunkString);
+      t.exit(stringType);
+      enclosedBefore(code);
+      return;
+    }
+    if (code == EOF || code == 60 || markdownLineEnding(code)) {
+      nok(code);
+      return;
+    }
+    t.consume(code);
+    t.next = if (code == 92) { enclosedEscape } else { enclosed };
+  };
+  enclosedBefore = (int code) => {
+    if (code == 62) {
+      t.enter(literalMarkerType);
+      t.consume(code);
+      t.exit(literalMarkerType);
+      t.exit(literalType);
+      t.exit(type);
+      t.next = ok;
+      return;
+    }
+    t.enter(stringType);
+    int chunk = t.enter(tChunkString);
+    t.tokens.contentType[chunk] = CT_STRING;
+    enclosed(code);
+  };
+  func(int)->void rawEscape = (int code) => {
+    if (code == 40 || code == 41 || code == 92) {
+      t.consume(code);
+      t.next = raw;
+      return;
+    }
+    raw(code);
+  };
+  raw = (int code) => {
+    if (balance == 0 && (code == EOF || code == 41 || markdownLineEndingOrSpace(code))) {
+      t.exit(tChunkString);
+      t.exit(stringType);
+      t.exit(rawType);
+      t.exit(type);
+      ok(code);
+      return;
+    }
+    if (balance < limit && code == 40) {
+      t.consume(code);
+      balance++;
+      t.next = raw;
+      return;
+    }
+    if (code == 41) {
+      t.consume(code);
+      balance--;
+      t.next = raw;
+      return;
+    }
+    if (code == EOF || code == SPACE || code == 40 || asciiControl(code)) {
+      nok(code);
+      return;
+    }
+    t.consume(code);
+    t.next = if (code == 92) { rawEscape } else { raw };
+  };
+  return (int code) => {
+    if (code == 60) {
+      t.enter(type);
+      t.enter(literalType);
+      t.enter(literalMarkerType);
+      t.consume(code);
+      t.exit(literalMarkerType);
+      t.next = enclosedBefore;
+      return;
+    }
+    if (code == EOF || code == SPACE || code == 41 || asciiControl(code)) {
+      nok(code);
+      return;
+    }
+    t.enter(type);
+    t.enter(rawType);
+    t.enter(stringType);
+    int chunk = t.enter(tChunkString);
+    t.tokens.contentType[chunk] = CT_STRING;
+    raw(code);
+  };
+}

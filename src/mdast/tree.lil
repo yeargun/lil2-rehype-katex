@@ -1,0 +1,226 @@
+// mdast as an arena: a node is an int, its fields live in parallel arrays.
+//
+// Strings per kind (slot: s1 / s2 / s3):
+//   text, html, inlineCode, math, inlineMath: value / - / -
+//   code: value / lang? / meta?
+//   definition: url / title? / -        (+ identifier, label? in the reference slots)
+//   link: url / title? / -              image: url / title? / alt?
+//   linkReference: - / - / -            imageReference: - / - / alt?
+// Reference slots (identifier / label?) are kept apart so a link can hold both while it is open,
+// exactly as upstream's node does before `onexitlink` deletes one pair. An identifier is an int id;
+// `identifiers` holds each id's mdast string.
+// Numbers: heading depth; list start (null flag); reference type (0 shortcut, 1 collapsed, 2 full);
+// for a table, the offset of its alignments in `aux` (a count, then one `ALIGN_*` per column).
+
+export const int K_ROOT = 0;
+export const int K_FRAGMENT = 1;
+export const int K_PARAGRAPH = 2;
+export const int K_HEADING = 3;
+export const int K_THEMATIC_BREAK = 4;
+export const int K_BLOCKQUOTE = 5;
+export const int K_LIST = 6;
+export const int K_LIST_ITEM = 7;
+export const int K_HTML = 8;
+export const int K_CODE = 9;
+export const int K_DEFINITION = 10;
+export const int K_TEXT = 11;
+export const int K_EMPHASIS = 12;
+export const int K_STRONG = 13;
+export const int K_INLINE_CODE = 14;
+export const int K_BREAK = 15;
+export const int K_LINK = 16;
+export const int K_IMAGE = 17;
+export const int K_LINK_REFERENCE = 18;
+export const int K_IMAGE_REFERENCE = 19;
+// GFM (mdast-util-gfm).
+export const int K_DELETE = 20;
+export const int K_TABLE = 21;
+export const int K_TABLE_ROW = 22;
+export const int K_TABLE_CELL = 23;
+export const int K_FOOTNOTE_DEFINITION = 24;
+export const int K_FOOTNOTE_REFERENCE = 25;
+// Math (mdast-util-math) owns the next range.
+export const int KINDS_MATH = 26;
+export const int KIND_LIMIT = 32;
+
+// Table cell alignment (mdast `align` items: null, left, center, right).
+export const int ALIGN_NONE = 0;
+export const int ALIGN_LEFT = 1;
+export const int ALIGN_CENTER = 2;
+export const int ALIGN_RIGHT = 3;
+
+// Flags.
+export const int N_S2_SET = 1;
+export const int N_S3_SET = 2;
+export const int N_LABEL_SET = 4;
+export const int N_ORDERED = 8;
+export const int N_SPREAD = 16;
+export const int N_START_SET = 32;
+export const int N_CHECKED_SET = 64;
+export const int N_CHECKED = 128;
+export const int N_HAS_CHILDREN = 256;
+export const int N_HAS_POSITION = 512;
+export const int N_END_SET = 1024;
+export const int N_IDENTIFIER_SET = 2048;
+export const int N_URL_SET = 4096;
+// Kinds with a `value` field that are not core (extensions mark theirs at creation).
+export const int N_HAS_VALUE = 8192;
+
+export class Tree {
+  int[] kind;
+  int[] flags;
+  int[] parent;
+  int[] firstChild;
+  int[] lastChild;
+  int[] nextSibling;
+  int[] previousSibling;
+  // Positions are offsets; line and column come from `lineStarts` (the parser's line table).
+  int[] sOffset;
+  int[] eOffset;
+  int[] lineStarts;
+  int[] num;
+  string[] s1;
+  string[] s2;
+  string[] s3;
+  int[] identifier;
+  string[] identifiers;
+  string[] label;
+  int[] aux;
+
+  init() {
+    this.kind = [];
+    this.flags = [];
+    this.parent = [];
+    this.firstChild = [];
+    this.lastChild = [];
+    this.nextSibling = [];
+    this.previousSibling = [];
+    this.sOffset = [];
+    this.eOffset = [];
+    this.lineStarts = [0];
+    this.num = [];
+    this.s1 = [];
+    this.s2 = [];
+    this.s3 = [];
+    this.identifier = [];
+    this.identifiers = [];
+    this.label = [];
+    this.aux = [];
+  }
+
+  int create(int kind, int flags) {
+    int id = this.kind.length;
+    this.kind.push(kind);
+    this.flags.push(flags);
+    this.parent.push(-1);
+    this.firstChild.push(-1);
+    this.lastChild.push(-1);
+    this.nextSibling.push(-1);
+    this.previousSibling.push(-1);
+    this.sOffset.push(0);
+    this.eOffset.push(0);
+    this.num.push(0);
+    this.s1.push("");
+    this.s2.push("");
+    this.s3.push("");
+    this.identifier.push(-1);
+    this.label.push("");
+    return id;
+  }
+
+  bool has(int node, int flag) {
+    return (this.flags[node] & flag) != 0;
+  }
+
+  void set(int node, int flag) {
+    this.flags[node] = this.flags[node] | flag;
+  }
+
+  void unset(int node, int flag) {
+    if ((this.flags[node] & flag) != 0) {
+      this.flags[node] = this.flags[node] - flag;
+    }
+  }
+
+  void append(int parent, int child) {
+    this.parent[child] = parent;
+    int last = this.lastChild[parent];
+    this.previousSibling[child] = last;
+    this.nextSibling[child] = -1;
+    if (last < 0) {
+      this.firstChild[parent] = child;
+    } else {
+      this.nextSibling[last] = child;
+    }
+    this.lastChild[parent] = child;
+  }
+
+  // Moves all children of `from` to `to` (which has none), as `to.children = from.children`.
+  void moveChildren(int from, int to) {
+    int child = this.firstChild[from];
+    this.firstChild[to] = child;
+    this.lastChild[to] = this.lastChild[from];
+    while (child >= 0) {
+      this.parent[child] = to;
+      child = this.nextSibling[child];
+    }
+    this.firstChild[from] = -1;
+    this.lastChild[from] = -1;
+  }
+
+  // A table's column alignments (`align`).
+  int alignCount(int table) {
+    return this.aux[this.num[table]];
+  }
+
+  int alignAt(int table, int column) {
+    return this.aux[this.num[table] + 1 + column];
+  }
+
+  int childCount(int node) {
+    int count = 0;
+    int child = this.firstChild[node];
+    while (child >= 0) {
+      count++;
+      child = this.nextSibling[child];
+    }
+    return count;
+  }
+}
+
+// The 1-based line and column of an offset, from a line table.
+export int lineAt(int[] lineStarts, int offset) {
+  int low = 0;
+  int high = lineStarts.length - 1;
+  while (low < high) {
+    int middle = (low + high + 1) >> 1;
+    if (lineStarts[middle] <= offset) {
+      low = middle;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return low + 1;
+}
+
+export int columnAt(int[] lineStarts, int offset) {
+  return offset - lineStarts[lineAt(lineStarts, offset) - 1] + 1;
+}
+
+// mdast-util-to-string with its defaults (images contribute their alt, html its value).
+export string toString(Tree tree, int node) {
+  int kind = tree.kind[node];
+  if (kind == K_TEXT || kind == K_HTML || kind == K_INLINE_CODE || kind == K_CODE || tree.has(node, N_HAS_VALUE)) {
+    return tree.s1[node];
+  }
+  if ((kind == K_IMAGE || kind == K_IMAGE_REFERENCE) && tree.has(node, N_S3_SET) && tree.s3[node] != "") {
+    return tree.s3[node];
+  }
+  string result = "";
+  int child = tree.firstChild[node];
+  while (child >= 0) {
+    result += toString(tree, child);
+    child = tree.nextSibling[child];
+  }
+  return result;
+}

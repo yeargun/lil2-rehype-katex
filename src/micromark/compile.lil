@@ -1,0 +1,628 @@
+// micromark/lib/compile.js: events to HTML, with handlers in arrays indexed by token type.
+
+import { CR, LF } from "./codes.lil";
+import { tAtxHeading, tAtxHeadingSequence, tAutolinkEmail, tAutolinkProtocol, tBlockQuote, tCharacterEscapeValue, tCharacterReferenceMarkerHexadecimal, tCharacterReferenceMarkerNumeric, tCharacterReferenceValue, tCodeFenced, tCodeFencedFence, tCodeFencedFenceInfo, tCodeFencedFenceMeta, tCodeFlowValue, tCodeIndented, tCodeText, tCodeTextData, tContent, tData, tDefinition, tDefinitionDestinationString, tDefinitionLabelString, tDefinitionTitleString, tEmphasis, tHardBreakEscape, tHardBreakTrailing, tHtmlFlow, tHtmlFlowData, tHtmlText, tHtmlTextData, tImage, tLabel, tLabelText, tLineEnding, tLineEndingBlank, tLinePrefix, tLink, tListItemMarker, tListItemPrefix, tListItemValue, tListOrdered, tListUnordered, tParagraph, tReference, tReferenceString, tResource, tResourceDestinationString, tResourceTitleString, tSetextHeading, tSetextHeadingLineSequence, tSetextHeadingText, tStrong, tThematicBreak } from "./types.lil";
+import { F_CONTAINER, Parser, Tokens, eventToken, isEnter, pushAll, serializeToken } from "./tokenizer.lil";
+import { decodeNamed, decodeNumeric, encode as encodeHtml, normalizeIdentifier, sanitizeUri } from "./util.lil";
+
+export const int F_LOOSE = 128;
+
+export class CompileOptions {
+  bool allowDangerousHtml;
+  bool allowDangerousProtocol;
+  string defaultLineEnding;
+
+  init() {
+    this.allowDangerousHtml = false;
+    this.allowDangerousProtocol = false;
+    this.defaultLineEnding = "";
+  }
+}
+
+class Media {
+  bool image;
+  string? labelId;
+  string label;
+  string? referenceId;
+  string? destination;
+  string? title;
+
+  init(bool image) {
+    this.image = image;
+    this.labelId = null;
+    this.label = "";
+    this.referenceId = null;
+    this.destination = null;
+    this.title = null;
+  }
+}
+
+func(Compiler, int)->void skip = (Compiler c, int token) => {};
+
+Regex protocolHref = new Regex("^(https?|ircs?|mailto|xmpp)$", "i");
+Regex protocolSource = new Regex("^https?$", "i");
+
+export class Compiler {
+  Parser parser;
+  Tokens tokens;
+  CompileOptions options;
+  bool tags;
+  // Definitions by identifier id (-1: none), as indexes into `definitionList`.
+  int[] definitionOf;
+  Media[] definitionList;
+  (string[])[] buffers;
+  Media[] mediaStack;
+  bool[] tightStack;
+  string lineEndingStyle;
+  (func(Compiler, int)->void)[] enter;
+  (func(Compiler, int)->void)[] exit;
+  // Upstream's `data` keys.
+  bool lastWasTag;
+  bool slurpAllLineEndings;
+  bool slurpOneLineEnding;
+  bool expectFirstItem;
+  int fencesCount;
+  bool flowCodeSeenData;
+  bool ignoreEncode;
+  int headingRank;
+  bool inCodeText;
+  int characterReferenceType;
+
+  init(Parser parser, CompileOptions options) {
+    this.parser = parser;
+    this.tokens = parser.tokens;
+    this.options = options;
+    this.tags = true;
+    this.definitionOf = [];
+    this.definitionList = [];
+    this.buffers = [[]];
+    this.mediaStack = [];
+    this.tightStack = [];
+    this.lineEndingStyle = options.defaultLineEnding;
+    this.enter = [];
+    this.exit = [];
+    this.lastWasTag = false;
+    this.slurpAllLineEndings = false;
+    this.slurpOneLineEnding = false;
+    this.expectFirstItem = false;
+    this.fencesCount = -1;
+    this.flowCodeSeenData = false;
+    this.ignoreEncode = false;
+    this.headingRank = 0;
+    this.inCodeText = false;
+    this.characterReferenceType = -1;
+  }
+
+  void on(bool entering, int type, func(Compiler, int)->void handle) {
+    (func(Compiler, int)->void)[] table = if (entering) { this.enter } else { this.exit };
+    while (table.length <= type) {
+      table.push(skip);
+    }
+    table[type] = handle;
+  }
+
+  string slice(int token) {
+    return serializeToken(this.parser, token, false);
+  }
+
+  void buffer() {
+    this.buffers.push([]);
+  }
+
+  string resume() {
+    string[] buf = this.buffers.pop();
+    return buf.join("");
+  }
+
+  void tag(string value) {
+    if (!this.tags) {
+      return;
+    }
+    this.lastWasTag = true;
+    this.buffers[this.buffers.length - 1].push(value);
+  }
+
+  void raw(string value) {
+    this.lastWasTag = false;
+    this.buffers[this.buffers.length - 1].push(value);
+  }
+
+  void lineEnding() {
+    this.raw(if (this.lineEndingStyle != "") { this.lineEndingStyle } else { "\n" });
+  }
+
+  void lineEndingIfNeeded() {
+    string[] buf = this.buffers[this.buffers.length - 1];
+    if (buf.length == 0) {
+      return;
+    }
+    string last = buf[buf.length - 1];
+    if (last.length == 0) {
+      return;
+    }
+    int previous = last.codeUnitAt(last.length - 1);
+    if (previous == 10 || previous == 13) {
+      return;
+    }
+    this.lineEnding();
+  }
+
+  string encode(string value) {
+    return if (this.ignoreEncode) { value } else { encodeHtml(value) };
+  }
+
+  void exitListItem() {
+    if (this.lastWasTag && !this.slurpAllLineEndings) {
+      this.lineEndingIfNeeded();
+    }
+    this.tag("</li>");
+    this.slurpAllLineEndings = false;
+  }
+
+  void prepareList(int[] events, int from, int to) {
+    int index = from;
+    int containerBalance = 0;
+    bool loose = false;
+    bool atMarker = false;
+    while (++index < to) {
+      int event = events[index];
+      int token = eventToken(event);
+      if (this.tokens.has(token, F_CONTAINER)) {
+        atMarker = false;
+        if (isEnter(event)) {
+          containerBalance++;
+        } else {
+          containerBalance--;
+        }
+      } else {
+        int type = this.tokens.type[token];
+        if (type == tListItemPrefix) {
+          if (!isEnter(event)) {
+            atMarker = true;
+          }
+        } else if (type == tLinePrefix) {
+          // Nothing.
+        } else if (type == tLineEndingBlank) {
+          if (isEnter(event) && containerBalance == 0) {
+            if (atMarker) {
+              atMarker = false;
+            } else {
+              loose = true;
+            }
+          }
+        } else {
+          atMarker = false;
+        }
+      }
+    }
+    if (loose) {
+      this.tokens.set(eventToken(events[from]), F_LOOSE);
+    }
+  }
+
+  string compile(int[] events) {
+    int[] listStack = [];
+    int[] head = [];
+    int[] body = [];
+    int start = 0;
+    int index = -1;
+    while (++index < events.length) {
+      int event = events[index];
+      int token = eventToken(event);
+      int type = this.tokens.type[token];
+      if (this.lineEndingStyle == "" && (type == tLineEnding || type == tLineEndingBlank)) {
+        this.lineEndingStyle = this.slice(token);
+      }
+      if (type == tListOrdered || type == tListUnordered) {
+        if (isEnter(event)) {
+          listStack.push(index);
+        } else {
+          this.prepareList(events, listStack.pop(), index);
+        }
+      }
+      if (type == tDefinition) {
+        if (isEnter(event)) {
+          body = pushAll(body, events.slice(start, index));
+          start = index;
+        } else {
+          head = pushAll(head, events.slice(start, index + 1));
+          start = index + 1;
+        }
+      }
+    }
+    head = pushAll(head, body);
+    head = pushAll(head, events.slice(start));
+    for (int event of head) {
+      int token = eventToken(event);
+      int type = this.tokens.type[token];
+      (func(Compiler, int)->void)[] table = if (isEnter(event)) { this.enter } else { this.exit };
+      if (type < table.length) {
+        table[type](this, token);
+      }
+    }
+    return this.buffers[0].join("");
+  }
+}
+
+void onExitMedia(Compiler c, int token) {
+  int index = c.mediaStack.length - 1;
+  Media media = c.mediaStack[index];
+  string id = media.referenceId ?? media.labelId ?? "";
+  if (id == "") {
+    id = media.labelId ?? "";
+  }
+  Media context = media;
+  if (media.destination == null) {
+    int found = c.parser.findIdentifier(normalizeIdentifier(id));
+    if (found >= 0 && found < c.definitionOf.length && c.definitionOf[found] >= 0) {
+      context = c.definitionList[c.definitionOf[found]];
+    }
+  }
+  c.tags = true;
+  while (index-- > 0) {
+    if (c.mediaStack[index].image) {
+      c.tags = false;
+      break;
+    }
+  }
+  string destination = context.destination ?? "";
+  if (media.image) {
+    c.tag("<img src=\"" + sanitizeUri(destination, if (c.options.allowDangerousProtocol) { null } else { protocolSource }) + "\" alt=\"");
+    c.raw(media.label);
+    c.tag("\"");
+  } else {
+    c.tag("<a href=\"" + sanitizeUri(destination, if (c.options.allowDangerousProtocol) { null } else { protocolHref }) + "\"");
+  }
+  string title = context.title ?? "";
+  c.tag(if (title != "") { " title=\"" + title + "\"" } else { "" });
+  if (media.image) {
+    c.tag(" />");
+  } else {
+    c.tag(">");
+    c.raw(media.label);
+    c.tag("</a>");
+  }
+  c.mediaStack.pop();
+}
+
+void onExitData(Compiler c, int token) {
+  c.raw(c.encode(c.slice(token)));
+}
+
+void onEnterHtml(Compiler c, int token) {
+  if (c.options.allowDangerousHtml) {
+    c.ignoreEncode = true;
+  }
+}
+
+void onExitFlowCode(Compiler c, int token) {
+  int count = c.fencesCount;
+  if (count >= 0 && count < 2 && c.tightStack.length > 0 && !c.lastWasTag) {
+    c.lineEnding();
+  }
+  if (c.flowCodeSeenData) {
+    c.lineEndingIfNeeded();
+  }
+  c.tag("</code></pre>");
+  if (count >= 0 && count < 2) {
+    c.lineEndingIfNeeded();
+  }
+  c.flowCodeSeenData = false;
+  c.fencesCount = -1;
+  c.slurpOneLineEnding = false;
+}
+
+void onBuffer(Compiler c, int token) {
+  c.buffer();
+}
+
+void onResumeDrop(Compiler c, int token) {
+  c.resume();
+}
+
+void onExitHardBreak(Compiler c, int token) {
+  c.tag("<br />");
+}
+
+void onExitCharacterReferenceMarker(Compiler c, int token) {
+  c.characterReferenceType = c.tokens.type[token];
+}
+
+void onExitList(Compiler c, string close) {
+  c.exitListItem();
+  c.tightStack.pop();
+  c.lineEnding();
+  c.tag(close);
+}
+
+void onEnterList(Compiler c, int token, string open) {
+  c.tightStack.push((c.tokens.flags[token] & F_LOOSE) == 0);
+  c.lineEndingIfNeeded();
+  c.tag(open);
+  c.expectFirstItem = true;
+}
+
+int parseDecimal(string value) {
+  int result = 0;
+  for (int index = 0; index < value.length; index++) {
+    result = result * 10 + (value.codeUnitAt(index) - 48);
+  }
+  return result;
+}
+
+// The CommonMark handlers.
+export void installCommonmarkHandlers(Compiler c) {
+  c.on(true, tBlockQuote, (Compiler c, int token) => {
+    c.tightStack.push(false);
+    c.lineEndingIfNeeded();
+    c.tag("<blockquote>");
+  });
+  c.on(true, tCodeFenced, (Compiler c, int token) => {
+    c.lineEndingIfNeeded();
+    c.tag("<pre><code");
+    c.fencesCount = 0;
+  });
+  c.on(true, tCodeFencedFenceInfo, onBuffer);
+  c.on(true, tCodeFencedFenceMeta, onBuffer);
+  c.on(true, tCodeIndented, (Compiler c, int token) => {
+    c.lineEndingIfNeeded();
+    c.tag("<pre><code>");
+  });
+  c.on(true, tCodeText, (Compiler c, int token) => {
+    c.inCodeText = true;
+    c.tag("<code>");
+  });
+  c.on(true, tContent, (Compiler c, int token) => {
+    c.slurpAllLineEndings = true;
+  });
+  c.on(true, tDefinition, (Compiler c, int token) => {
+    c.buffer();
+    c.mediaStack.push(new Media(false));
+  });
+  c.on(true, tDefinitionDestinationString, (Compiler c, int token) => {
+    c.buffer();
+    c.ignoreEncode = true;
+  });
+  c.on(true, tDefinitionLabelString, onBuffer);
+  c.on(true, tDefinitionTitleString, onBuffer);
+  c.on(true, tEmphasis, (Compiler c, int token) => {
+    c.tag("<em>");
+  });
+  c.on(true, tHtmlFlow, (Compiler c, int token) => {
+    c.lineEndingIfNeeded();
+    onEnterHtml(c, token);
+  });
+  c.on(true, tHtmlText, onEnterHtml);
+  c.on(true, tImage, (Compiler c, int token) => {
+    c.mediaStack.push(new Media(true));
+    c.tags = false;
+  });
+  c.on(true, tLabel, onBuffer);
+  c.on(true, tLink, (Compiler c, int token) => {
+    c.mediaStack.push(new Media(false));
+  });
+  c.on(true, tListItemMarker, (Compiler c, int token) => {
+    if (c.expectFirstItem) {
+      c.tag(">");
+    } else {
+      c.exitListItem();
+    }
+    c.lineEndingIfNeeded();
+    c.tag("<li>");
+    c.expectFirstItem = false;
+    c.lastWasTag = false;
+  });
+  c.on(true, tListItemValue, (Compiler c, int token) => {
+    if (c.expectFirstItem) {
+      int value = parseDecimal(c.slice(token));
+      if (value != 1) {
+        c.tag(" start=\"" + c.encode("" + value) + "\"");
+      }
+    }
+  });
+  c.on(true, tListOrdered, (Compiler c, int token) => {
+    onEnterList(c, token, "<ol");
+  });
+  c.on(true, tListUnordered, (Compiler c, int token) => {
+    onEnterList(c, token, "<ul");
+  });
+  c.on(true, tParagraph, (Compiler c, int token) => {
+    if (c.tightStack.length == 0 || !c.tightStack[c.tightStack.length - 1]) {
+      c.lineEndingIfNeeded();
+      c.tag("<p>");
+    }
+    c.slurpAllLineEndings = false;
+  });
+  c.on(true, tReference, onBuffer);
+  c.on(true, tResource, (Compiler c, int token) => {
+    c.buffer();
+    c.mediaStack[c.mediaStack.length - 1].destination = "";
+  });
+  c.on(true, tResourceDestinationString, (Compiler c, int token) => {
+    c.buffer();
+    c.ignoreEncode = true;
+  });
+  c.on(true, tResourceTitleString, onBuffer);
+  c.on(true, tSetextHeading, (Compiler c, int token) => {
+    c.buffer();
+    c.slurpAllLineEndings = false;
+  });
+  c.on(true, tStrong, (Compiler c, int token) => {
+    c.tag("<strong>");
+  });
+
+  c.on(false, tAtxHeading, (Compiler c, int token) => {
+    c.tag("</h" + c.headingRank + ">");
+    c.headingRank = 0;
+  });
+  c.on(false, tAtxHeadingSequence, (Compiler c, int token) => {
+    if (c.headingRank != 0) {
+      return;
+    }
+    c.headingRank = c.slice(token).length;
+    c.lineEndingIfNeeded();
+    c.tag("<h" + c.headingRank + ">");
+  });
+  c.on(false, tAutolinkEmail, (Compiler c, int token) => {
+    string uri = c.slice(token);
+    c.tag("<a href=\"" + sanitizeUri("mailto:" + uri, null) + "\">");
+    c.raw(c.encode(uri));
+    c.tag("</a>");
+  });
+  c.on(false, tAutolinkProtocol, (Compiler c, int token) => {
+    string uri = c.slice(token);
+    c.tag("<a href=\"" + sanitizeUri(uri, if (c.options.allowDangerousProtocol) { null } else { protocolHref }) + "\">");
+    c.raw(c.encode(uri));
+    c.tag("</a>");
+  });
+  c.on(false, tBlockQuote, (Compiler c, int token) => {
+    c.tightStack.pop();
+    c.lineEndingIfNeeded();
+    c.tag("</blockquote>");
+    c.slurpAllLineEndings = false;
+  });
+  c.on(false, tCharacterEscapeValue, onExitData);
+  c.on(false, tCharacterReferenceMarkerHexadecimal, onExitCharacterReferenceMarker);
+  c.on(false, tCharacterReferenceMarkerNumeric, onExitCharacterReferenceMarker);
+  c.on(false, tCharacterReferenceValue, (Compiler c, int token) => {
+    string value = c.slice(token);
+    string decoded = if (c.characterReferenceType >= 0) {
+      decodeNumeric(value, if (c.characterReferenceType == tCharacterReferenceMarkerNumeric) { 10 } else { 16 })
+    } else {
+      decodeNamed(value) ?? ""
+    };
+    c.raw(c.encode(decoded));
+    c.characterReferenceType = -1;
+  });
+  c.on(false, tCodeFenced, onExitFlowCode);
+  c.on(false, tCodeFencedFence, (Compiler c, int token) => {
+    int count = if (c.fencesCount < 0) { 0 } else { c.fencesCount };
+    if (count == 0) {
+      c.tag(">");
+      c.slurpOneLineEnding = true;
+    }
+    c.fencesCount = count + 1;
+  });
+  c.on(false, tCodeFencedFenceInfo, (Compiler c, int token) => {
+    string value = c.resume();
+    c.tag(" class=\"language-" + value + "\"");
+  });
+  c.on(false, tCodeFencedFenceMeta, onResumeDrop);
+  c.on(false, tCodeFlowValue, (Compiler c, int token) => {
+    c.raw(c.encode(c.slice(token)));
+    c.flowCodeSeenData = true;
+  });
+  c.on(false, tCodeIndented, onExitFlowCode);
+  c.on(false, tCodeText, (Compiler c, int token) => {
+    c.inCodeText = false;
+    c.tag("</code>");
+  });
+  c.on(false, tCodeTextData, onExitData);
+  c.on(false, tData, onExitData);
+  c.on(false, tDefinition, (Compiler c, int token) => {
+    Media media = c.mediaStack[c.mediaStack.length - 1];
+    int id = c.parser.identifier(normalizeIdentifier(media.labelId ?? ""));
+    c.resume();
+    while (c.definitionOf.length <= id) {
+      c.definitionOf.push(-1);
+    }
+    if (c.definitionOf[id] < 0) {
+      c.definitionOf[id] = c.definitionList.length;
+      c.definitionList.push(media);
+    }
+    c.mediaStack.pop();
+  });
+  c.on(false, tDefinitionDestinationString, (Compiler c, int token) => {
+    c.mediaStack[c.mediaStack.length - 1].destination = c.resume();
+    c.ignoreEncode = false;
+  });
+  c.on(false, tDefinitionLabelString, (Compiler c, int token) => {
+    c.resume();
+    c.mediaStack[c.mediaStack.length - 1].labelId = c.slice(token);
+  });
+  c.on(false, tDefinitionTitleString, (Compiler c, int token) => {
+    c.mediaStack[c.mediaStack.length - 1].title = c.resume();
+  });
+  c.on(false, tEmphasis, (Compiler c, int token) => {
+    c.tag("</em>");
+  });
+  c.on(false, tHardBreakEscape, onExitHardBreak);
+  c.on(false, tHardBreakTrailing, onExitHardBreak);
+  c.on(false, tHtmlFlow, (Compiler c, int token) => {
+    c.ignoreEncode = false;
+  });
+  c.on(false, tHtmlFlowData, onExitData);
+  c.on(false, tHtmlText, (Compiler c, int token) => {
+    c.ignoreEncode = false;
+  });
+  c.on(false, tHtmlTextData, onExitData);
+  c.on(false, tImage, onExitMedia);
+  c.on(false, tLabel, (Compiler c, int token) => {
+    c.mediaStack[c.mediaStack.length - 1].label = c.resume();
+  });
+  c.on(false, tLabelText, (Compiler c, int token) => {
+    c.mediaStack[c.mediaStack.length - 1].labelId = c.slice(token);
+  });
+  c.on(false, tLineEnding, (Compiler c, int token) => {
+    if (c.slurpAllLineEndings) {
+      return;
+    }
+    if (c.slurpOneLineEnding) {
+      c.slurpOneLineEnding = false;
+      return;
+    }
+    if (c.inCodeText) {
+      c.raw(" ");
+      return;
+    }
+    c.raw(c.encode(c.slice(token)));
+  });
+  c.on(false, tLink, onExitMedia);
+  c.on(false, tListOrdered, (Compiler c, int token) => {
+    onExitList(c, "</ol>");
+  });
+  c.on(false, tListUnordered, (Compiler c, int token) => {
+    onExitList(c, "</ul>");
+  });
+  c.on(false, tParagraph, (Compiler c, int token) => {
+    if (c.tightStack.length > 0 && c.tightStack[c.tightStack.length - 1]) {
+      c.slurpAllLineEndings = true;
+    } else {
+      c.tag("</p>");
+    }
+  });
+  c.on(false, tReference, onResumeDrop);
+  c.on(false, tReferenceString, (Compiler c, int token) => {
+    c.mediaStack[c.mediaStack.length - 1].referenceId = c.slice(token);
+  });
+  c.on(false, tResource, onResumeDrop);
+  c.on(false, tResourceDestinationString, (Compiler c, int token) => {
+    c.mediaStack[c.mediaStack.length - 1].destination = c.resume();
+    c.ignoreEncode = false;
+  });
+  c.on(false, tResourceTitleString, (Compiler c, int token) => {
+    c.mediaStack[c.mediaStack.length - 1].title = c.resume();
+  });
+  c.on(false, tSetextHeading, (Compiler c, int token) => {
+    string value = c.resume();
+    c.lineEndingIfNeeded();
+    c.tag("<h" + c.headingRank + ">");
+    c.raw(value);
+    c.tag("</h" + c.headingRank + ">");
+    c.slurpAllLineEndings = false;
+    c.headingRank = 0;
+  });
+  c.on(false, tSetextHeadingLineSequence, (Compiler c, int token) => {
+    c.headingRank = if (c.slice(token).codeUnitAt(0) == 61) { 1 } else { 2 };
+  });
+  c.on(false, tSetextHeadingText, (Compiler c, int token) => {
+    c.slurpAllLineEndings = true;
+  });
+  c.on(false, tStrong, (Compiler c, int token) => {
+    c.tag("</strong>");
+  });
+  c.on(false, tThematicBreak, (Compiler c, int token) => {
+    c.lineEndingIfNeeded();
+    c.tag("<hr />");
+  });
+}

@@ -1,0 +1,28 @@
+// lil2-rehype-katex: markdown with math to hast, with every math element rendered by KaTeX (remark-math,
+// remark-rehype, rehype-katex). Higher layers compile `katex/rehype-katex.lil` in instead.
+
+import { katex } from "./katex/host.lil";
+import { SyntaxExtension } from "./micromark/parse.lil";
+import { parseTree } from "./mdast/parse.lil";
+import { Tree } from "./mdast/tree.lil";
+import { FromMarkdown } from "./mdast/from-markdown.lil";
+import { Hast, keywordNames, propNames, tagNames } from "./hast/hast.lil";
+import { ToHast, toHast, toHastTree } from "./hast/to-hast.lil";
+import { mathHast, mathMdast, mathSyntax } from "./math/math.lil";
+import { rehypeKatex } from "./katex/rehype-katex.lil";
+
+// The hast columns (as lil2-mdast-util-to-hast's `markdownToHast` returns them) after rehype-katex, whose
+// settings are KaTeX's options (`settings` may be undefined). Property and tag names grow with what KaTeX
+// writes: read them from `propNames` and the columns' `tagNames` after the call.
+export JsValue markdownToHast(string value, JsValue settings) {
+  SyntaxExtension[] extensions = [mathSyntax(true)];
+  (func(FromMarkdown)->void)[] installers = [mathMdast];
+  ToHast state = toHastTree(parseTree(value, extensions, installers), false);
+  mathHast(state);
+  int root = toHast(state);
+  Hast h = state.hast;
+  rehypeKatex(h, root, settings);
+  return [root, h.kind, h.parent, h.firstChild, h.nextSibling, h.tag, h.value, h.sOffset, h.eOffset, h.flags, h.meta, h.propHead, h.pProp, h.pKind, h.pStr, h.pNum, h.pNext, h.lineStarts, tagNames];
+}
+
+export { propNames, keywordNames };

@@ -1,0 +1,56 @@
+// mdast-util-math 3.0.0 (from-markdown side): `math` and `inlineMath` nodes. Upstream also leaves `data.hName`,
+// `hProperties` and `hChildren` on them for mdast-util-to-hast; here the to-hast handlers make that element.
+
+import { FromMarkdown } from "../mdast/from-markdown.lil";
+import { N_HAS_VALUE, N_S3_SET } from "../mdast/tree.lil";
+import { K_INLINE_MATH, K_MATH, tMathFlow, tMathFlowFence, tMathFlowFenceMeta, tMathFlowValue, tMathText, tMathTextData } from "./ids.lil";
+
+Regex edgeLineEndings = new Regex("^(\\r?\\n|\\r)|(\\r?\\n|\\r)$", "g");
+
+export void installMathFromMarkdown(FromMarkdown c) {
+  // Upstream's `this.data.mathFlowInside`.
+  bool mathFlowInside = false;
+  c.on(true, tMathFlow, (FromMarkdown c, int token) => {
+    c.open(c.tree.create(K_MATH, N_HAS_VALUE), token);
+  });
+  c.on(true, tMathFlowFenceMeta, (FromMarkdown c, int token) => {
+    c.buffer();
+  });
+  c.on(true, tMathText, (FromMarkdown c, int token) => {
+    c.open(c.tree.create(K_INLINE_MATH, N_HAS_VALUE), token);
+    c.buffer();
+  });
+  c.on(false, tMathFlowFenceMeta, (FromMarkdown c, int token) => {
+    string data = c.resume();
+    int node = c.top();
+    c.tree.s3[node] = data;
+    c.tree.set(node, N_S3_SET);
+  });
+  c.on(false, tMathFlowFence, (FromMarkdown c, int token) => {
+    // The closing fence ends nothing here.
+    if (mathFlowInside) {
+      return;
+    }
+    c.buffer();
+    mathFlowInside = true;
+  });
+  c.on(false, tMathFlow, (FromMarkdown c, int token) => {
+    string data = c.resume().replace(edgeLineEndings, "");
+    int node = c.top();
+    c.close(token);
+    c.tree.s1[node] = data;
+    mathFlowInside = false;
+  });
+  c.on(false, tMathText, (FromMarkdown c, int token) => {
+    string data = c.resume();
+    int node = c.top();
+    c.close(token);
+    c.tree.s1[node] = data;
+  });
+  func(FromMarkdown, int)->void exitData = (FromMarkdown c, int token) => {
+    c.onEnterData(token);
+    c.onExitData(token);
+  };
+  c.on(false, tMathFlowValue, exitData);
+  c.on(false, tMathTextData, exitData);
+}

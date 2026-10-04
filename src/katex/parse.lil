@@ -1,0 +1,399 @@
+// hast-util-from-html-isomorphic 2.0.0 for KaTeX's output (`{fragment: true}`), into the hast arena.
+//
+// The browser build lets the document parse it (a `<template>`, then hast-util-from-dom's walk), as upstream's
+// browser graph does. Elsewhere a tokenizer reads the HTML KaTeX writes: tags, attributes (with the HTML
+// tokenizer's rules, so KaTeX's stray `'` after an image's style is an attribute as it is for parse5), text,
+// character references, void elements, and the MathML and SVG namespaces (self-closing tags, SVG attribute
+// case), giving what parse5 and hast-util-from-parse5 give. Either way an attribute becomes a property as
+// hastscript makes it (property-information, by schema), with KaTeX's attributes known up front.
+
+import { BROWSER, decodeNamed } from "../micromark/util.lil";
+import { H_COMMENT, H_ELEMENT, H_TEXT, P_BOOLEAN, P_FLOAT, P_LIST, P_STRING, TAG_SVG, Hast, defineProp, propId, tagId } from "../hast/hast.lil";
+import { attributeKinds, attributeKindsSvg, attributeNames, attributeProps, attributePropsSvg, propertyComma, propertyCommaSvg, propertyNames, propertyReact, propertyReactSvg } from "./vocabulary.lil";
+
+extern JsValue document;
+extern JsValue String;
+extern JsValue Number;
+
+// Value kinds (scripts/generate-vocabulary.mjs).
+const int V_STRING = 0;
+const int V_SPACES = 1;
+const int V_COMMAS = 2;
+const int V_COMMAS_OR_SPACES = 3;
+const int V_NUMBER = 4;
+const int V_BOOLEAN = 5;
+
+// Attribute name to `prop id * 8 + value kind`, per schema; filled on first use.
+Map<string, int> htmlAttributes = new Map<string, int>();
+Map<string, int> svgAttributes = new Map<string, int>();
+
+void prepare() {
+  for (int index = 0; index < propertyNames.length; index++) {
+    defineProp(propertyNames[index], propertyReact[index], propertyReactSvg[index], propertyComma[index], propertyCommaSvg[index]);
+  }
+  for (int index = 0; index < attributeNames.length; index++) {
+    htmlAttributes.set(attributeNames[index], propId(attributeProps[index]) * 8 + attributeKinds[index]);
+    svgAttributes.set(attributeNames[index], propId(attributePropsSvg[index]) * 8 + attributeKindsSvg[index]);
+  }
+}
+
+Regex dataName = new Regex("^data[-\\w.:]+$", "i");
+Regex dashLetter = new Regex("-[a-z]", "g");
+
+// An attribute outside KaTeX's vocabulary (a `data-*` from \htmlData, or a stray name): property-information's
+// rule for unlisted names. Its JSX key is the attribute itself in both schemas.
+int unknownAttribute(string name, bool svg) {
+  string property = name;
+  if (name.length > 4 && name.slice(0, 4).toLowerCase() == "data" && dataName.test(name) && name.codeUnitAt(4) == 45) {
+    string rest = JS.assume(JS.invoke(name.slice(5), "replace", dashLetter, (JsValue whole) => JS.invoke(JS.invoke(whole, "charAt", 1), "toUpperCase")));
+    property = "data" + rest.slice(0, 1).toUpperCase() + rest.slice(1);
+  }
+  int code = defineProp(property, name, name, false, false) * 8 + V_STRING;
+  if (svg) {
+    svgAttributes.set(name, code);
+  } else {
+    htmlAttributes.set(name, code);
+  }
+  return code;
+}
+
+Regex spaceTokens = new Regex("[ \\t\\n\\r\\f]+", "g");
+
+// hastscript's `addProperty` for one attribute of `node`.
+void addAttribute(Hast h, int node, bool svg, string name, string value) {
+  if (htmlAttributes.size == 0) {
+    prepare();
+  }
+  int code = (if (svg) { svgAttributes.get(name) } else { htmlAttributes.get(name) }) ?? unknownAttribute(name, svg);
+  int prop = code >> 3;
+  int kind = code & 7;
+  if (kind == V_SPACES || kind == V_COMMAS_OR_SPACES) {
+    string trimmed = value.trim();
+    string joined = if (trimmed == "") { "" } else { JS.assume(JS.invoke(JS.invoke(trimmed, "split", spaceTokens), "join", " ")) };
+    h.setProperty(node, prop, P_LIST, joined, 0);
+    return;
+  }
+  if (kind == V_COMMAS) {
+    h.setProperty(node, prop, P_LIST, value.split(",").map((string item) => item.trim()).join(" "), 0);
+    return;
+  }
+  if (kind == V_NUMBER && value != "" && !bool(JS.invoke(Number, "isNaN", Number(value)))) {
+    h.setProperty(node, prop, P_FLOAT, value, 0);
+    return;
+  }
+  if (kind == V_BOOLEAN && (value == "" || value.toLowerCase() == name.toLowerCase())) {
+    h.setProperty(node, prop, P_BOOLEAN, "", 1);
+    return;
+  }
+  h.setProperty(node, prop, P_STRING, value, 0);
+}
+
+// --- the browser build: the document parses -------------------------------------------------
+
+const string SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+const string HTML_NAMESPACE = "http://www.w3.org/1999/xhtml";
+
+void fromDom(Hast h, JsValue node, int parent, int[] top) {
+  JsValue children = node["childNodes"];
+  int length = JS.number(children["length"]).toInt();
+  for (int index = 0; index < length; index++) {
+    JsValue child = children[index];
+    int type = JS.number(child["nodeType"]).toInt();
+    int created = -1;
+    if (type == 1) {
+      JsValue space = child["namespaceURI"];
+      bool html = JS.strictEqual(space, HTML_NAMESPACE);
+      bool svg = JS.strictEqual(space, SVG_NAMESPACE);
+      string tagName = JS.assume(child["tagName"]);
+      if (html) {
+        tagName = tagName.toLowerCase();
+      }
+      created = h.element(tagId(tagName));
+      JsValue names = JS.invoke(child, "getAttributeNames");
+      int count = JS.number(names["length"]).toInt();
+      for (int at = 0; at < count; at++) {
+        JsValue value = JS.invoke(child, "getAttribute", names[at]);
+        addAttribute(h, created, svg, JS.assume(names[at]), if (bool(value)) { JS.assume(value) } else { "" });
+      }
+      JsValue content = if (html && tagName == "template") { child["content"] } else { child };
+      fromDom(h, content, created, top);
+    } else if (type == 3) {
+      JsValue text = child["nodeValue"];
+      created = h.text(if (bool(text)) { JS.assume(text) } else { "" });
+    } else if (type == 8) {
+      JsValue text = child["nodeValue"];
+      created = h.create(H_COMMENT, 0, if (bool(text)) { JS.assume(text) } else { "" });
+    }
+    if (created >= 0) {
+      if (parent >= 0) {
+        h.append(parent, created);
+      } else {
+        top.push(created);
+      }
+    }
+  }
+}
+
+int[] parseInDocument(Hast h, string html) {
+  JsValue template = JS.invoke(document, "createElement", "template");
+  JS.set(template, "innerHTML", html);
+  int[] top = [];
+  fromDom(h, template["content"], -1, top);
+  return top;
+}
+
+// --- elsewhere: a tokenizer for KaTeX's HTML ------------------------------------------------
+
+const int NS_HTML = 0;
+const int NS_SVG = 1;
+const int NS_MATH = 2;
+
+string[] voidElements = ["area", "base", "basefont", "bgsound", "br", "col", "embed", "frame", "hr", "img", "input", "keygen", "link", "meta", "param", "source", "track", "wbr"];
+
+// The HTML tree builder's case adjustments in SVG (those KaTeX's attributes can need).
+string adjustSvgAttribute(string name) {
+  if (name == "viewbox") {
+    return "viewBox";
+  }
+  if (name == "preserveaspectratio") {
+    return "preserveAspectRatio";
+  }
+  return name;
+}
+
+bool space(int code) {
+  return code == 32 || code == 9 || code == 10 || code == 12 || code == 13;
+}
+
+bool asciiAlphanumeric(int code) {
+  return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+}
+
+// Windows-1252 for references to C1 controls, as the HTML tokenizer maps them.
+int[] c1 = [8364, 129, 8218, 402, 8222, 8230, 8224, 8225, 710, 8240, 352, 8249, 338, 141, 381, 143, 144, 8216, 8217, 8220, 8221, 8226, 8211, 8212, 732, 8482, 353, 8250, 339, 157, 382, 376];
+
+// Where the last reference `reference` decoded ends.
+int referenceEnd = 0;
+
+// The character reference at `value[start]` (`&`), decoded, or null when it is none.
+string? reference(string value, int start) {
+  int index = start + 1;
+  if (index < value.length && value.codeUnitAt(index) == 35) {
+    index++;
+    bool hex = index < value.length && (value.codeUnitAt(index) == 120 || value.codeUnitAt(index) == 88);
+    if (hex) {
+      index++;
+    }
+    int digits = index;
+    int code = 0;
+    while (index < value.length) {
+      int c = value.codeUnitAt(index);
+      int digit = if (c >= 48 && c <= 57) { c - 48 } else { if (hex && c >= 97 && c <= 102) { c - 87 } else { if (hex && c >= 65 && c <= 70) { c - 55 } else { -1 } } };
+      if (digit < 0) {
+        break;
+      }
+      if (code <= 1114111) {
+        code = code * (if (hex) { 16 } else { 10 }) + digit;
+      }
+      index++;
+    }
+    if (index == digits || index >= value.length || value.codeUnitAt(index) != 59) {
+      return null;
+    }
+    if (code == 0 || code > 1114111 || (code >= 55296 && code <= 57343)) {
+      code = 65533;
+    } else if (code >= 128 && code <= 159) {
+      code = c1[code - 128];
+    }
+    referenceEnd = index + 1;
+    return JS.assume(JS.invoke(String, "fromCodePoint", code));
+  }
+  while (index < value.length && asciiAlphanumeric(value.codeUnitAt(index))) {
+    index++;
+  }
+  if (index > start + 1 && index < value.length && value.codeUnitAt(index) == 59) {
+    string? decoded = decodeNamed(value.slice(start + 1, index));
+    if (decoded != null) {
+      referenceEnd = index + 1;
+      return decoded;
+    }
+  }
+  return null;
+}
+
+string decodeText(string value) {
+  if (value.indexOf("&") < 0) {
+    return value;
+  }
+  string result = "";
+  int last = 0;
+  int index = value.indexOf("&");
+  while (index >= 0) {
+    string? found = reference(value, index);
+    if (found != null) {
+      result += value.slice(last, index) + found;
+      last = referenceEnd;
+      index = value.indexOf("&", last);
+    } else {
+      index = value.indexOf("&", index + 1);
+    }
+  }
+  return result + value.slice(last);
+}
+
+int[] parseWithTokenizer(Hast h, string html) {
+  int[] top = [];
+  int[] open = [];
+  int[] spaces = [];
+  int[] tags = [];
+  string[] names = [];
+  int index = 0;
+  int length = html.length;
+  while (index < length) {
+    int code = html.codeUnitAt(index);
+    if (code == 60 && index + 1 < length && html.codeUnitAt(index + 1) == 47) {
+      // An end tag: close up to the matching open element.
+      int end = html.indexOf(">", index);
+      if (end < 0) {
+        end = length;
+      }
+      string name = html.slice(index + 2, end).trim().toLowerCase();
+      int at = names.length - 1;
+      while (at >= 0 && names[at] != name) {
+        at--;
+      }
+      if (at >= 0) {
+        open.splice(at, open.length - at);
+        spaces.splice(at, spaces.length - at);
+        tags.splice(at, tags.length - at);
+        names.splice(at, names.length - at);
+      }
+      index = end + 1;
+      continue;
+    }
+    if (code == 60 && index + 1 < length && ((html.codeUnitAt(index + 1) | 32) >= 97 && (html.codeUnitAt(index + 1) | 32) <= 122)) {
+      // A start tag.
+      int cursor = index + 1;
+      while (cursor < length && !space(html.codeUnitAt(cursor)) && html.codeUnitAt(cursor) != 47 && html.codeUnitAt(cursor) != 62) {
+        cursor++;
+      }
+      string name = html.slice(index + 1, cursor).toLowerCase();
+      int parentSpace = if (spaces.length > 0) { spaces[spaces.length - 1] } else { NS_HTML };
+      int ns = parentSpace;
+      if (parentSpace == NS_HTML) {
+        ns = if (name == "svg") { NS_SVG } else { if (name == "math") { NS_MATH } else { NS_HTML } };
+      }
+      int node = h.element(tagId(name));
+      bool svg = ns == NS_SVG;
+      string[] seen = [];
+      bool selfClosing = false;
+      // Attributes, by the tokenizer's states.
+      while (cursor < length) {
+        int c = html.codeUnitAt(cursor);
+        if (space(c)) {
+          cursor++;
+          continue;
+        }
+        if (c == 62) {
+          cursor++;
+          break;
+        }
+        if (c == 47) {
+          cursor++;
+          if (cursor < length && html.codeUnitAt(cursor) == 62) {
+            selfClosing = true;
+            cursor++;
+            break;
+          }
+          continue;
+        }
+        int nameStart = cursor;
+        cursor++;
+        while (cursor < length) {
+          int d = html.codeUnitAt(cursor);
+          if (space(d) || d == 47 || d == 62 || d == 61) {
+            break;
+          }
+          cursor++;
+        }
+        string attribute = html.slice(nameStart, cursor).toLowerCase();
+        if (svg) {
+          attribute = adjustSvgAttribute(attribute);
+        }
+        while (cursor < length && space(html.codeUnitAt(cursor))) {
+          cursor++;
+        }
+        string value = "";
+        if (cursor < length && html.codeUnitAt(cursor) == 61) {
+          cursor++;
+          while (cursor < length && space(html.codeUnitAt(cursor))) {
+            cursor++;
+          }
+          if (cursor < length && (html.codeUnitAt(cursor) == 34 || html.codeUnitAt(cursor) == 39)) {
+            int quote = html.codeUnitAt(cursor);
+            int close = html.indexOf(if (quote == 34) { "\"" } else { "'" }, cursor + 1);
+            if (close < 0) {
+              close = length;
+            }
+            value = decodeText(html.slice(cursor + 1, close));
+            cursor = close + 1;
+          } else {
+            int valueStart = cursor;
+            while (cursor < length && !space(html.codeUnitAt(cursor)) && html.codeUnitAt(cursor) != 62) {
+              cursor++;
+            }
+            value = decodeText(html.slice(valueStart, cursor));
+          }
+        }
+        // A repeated attribute is dropped.
+        if (!seen.includes(attribute)) {
+          seen.push(attribute);
+          addAttribute(h, node, svg, attribute, value);
+        }
+      }
+      if (open.length > 0) {
+        h.append(open[open.length - 1], node);
+      } else {
+        top.push(node);
+      }
+      bool closed = if (ns == NS_HTML) { voidElements.includes(name) } else { selfClosing };
+      if (!closed) {
+        open.push(node);
+        spaces.push(ns);
+        tags.push(h.tag[node]);
+        names.push(name);
+      }
+      index = cursor;
+      continue;
+    }
+    // Text up to the next tag.
+    int next = html.indexOf("<", if (code == 60) { index + 1 } else { index });
+    if (next < 0) {
+      next = length;
+    }
+    string value = decodeText(html.slice(index, next));
+    int parent = if (open.length > 0) { open[open.length - 1] } else { -1 };
+    int last = if (parent >= 0) { h.lastChild[parent] } else { if (top.length > 0) { top[top.length - 1] } else { -1 } };
+    // A `<` that starts no tag is text: the parser keeps it in the same text node.
+    if (last >= 0 && h.kind[last] == H_TEXT) {
+      h.value[last] = h.value[last] + value;
+    } else {
+      int text = h.text(value);
+      if (parent >= 0) {
+        h.append(parent, text);
+      } else {
+        top.push(text);
+      }
+    }
+    index = next;
+  }
+  return top;
+}
+
+// Chosen at module initialization, so a build carries one of the two (see `entities` in micromark's util).
+func(Hast, string)->int[] parser = if (BROWSER) { parseInDocument } else { parseWithTokenizer };
+
+// `fromHtmlIsomorphic(html, {fragment: true}).children`, appended to `h`; returns the new top-level nodes.
+export int[] parseHtml(Hast h, string html) {
+  return parser(h, html);
+}

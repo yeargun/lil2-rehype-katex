@@ -1,0 +1,305 @@
+// micromark-core-commonmark: label-start-image, label-start-link, label-end.
+
+import { markdownLineEndingOrSpace } from "../codes.lil";
+import { tData, tImage, tLabel, tLabelEnd, tLabelImage, tLabelImageMarker, tLabelLink, tLabelMarker, tLabelText, tLink, tReference, tReferenceMarker, tReferenceString, tResource, tResourceDestination, tResourceDestinationLiteral, tResourceDestinationLiteralMarker, tResourceDestinationRaw, tResourceDestinationString, tResourceMarker, tResourceTitle, tResourceTitleMarker, tResourceTitleString } from "../types.lil";
+import { C_LABEL_END, C_LABEL_START_IMAGE, C_LABEL_START_LINK, C_NONE, ID_DEFINITION, F_BALANCED, F_INACTIVE, Construct, Tokenizer, Tokens, defineResolver, enterEvent, eventToken, exitEvent, isEnter, newToken, noState, pushAll, resolveAllOf, splice } from "../tokenizer.lil";
+import { factoryDestination, factoryLabel, factoryTitle, factoryWhitespace } from "../factories.lil";
+import { normalizeIdentifier } from "../util.lil";
+
+int[] resolveAllLabelEnd(int[] events, Tokenizer t) {
+  Tokens tokens = t.tokens;
+  int[] newEvents = [];
+  int index = -1;
+  while (++index < events.length) {
+    int token = eventToken(events[index]);
+    newEvents.push(events[index]);
+    int type = tokens.type[token];
+    if (type == tLabelImage || type == tLabelLink || type == tLabelEnd) {
+      int offset = if (type == tLabelImage) { 4 } else { 2 };
+      tokens.type[token] = tData;
+      index += offset;
+    }
+  }
+  if (events.length != newEvents.length) {
+    splice(events, 0, events.length, newEvents);
+  }
+  return events;
+}
+
+export int labelEndResolver = defineResolver(resolveAllLabelEnd);
+
+int[] resolveToLabelEnd(int[] events, Tokenizer t) {
+  Tokens tokens = t.tokens;
+  int index = events.length;
+  int offset = 0;
+  int open = -1;
+  int close = -1;
+  while (index-- > 0) {
+    int token = eventToken(events[index]);
+    int type = tokens.type[token];
+    if (open >= 0) {
+      if (type == tLink || (type == tLabelLink && tokens.has(token, F_INACTIVE))) {
+        break;
+      }
+      if (isEnter(events[index]) && type == tLabelLink) {
+        tokens.set(token, F_INACTIVE);
+      }
+    } else if (close >= 0) {
+      if (isEnter(events[index]) && (type == tLabelImage || type == tLabelLink) && !tokens.has(token, F_BALANCED)) {
+        open = index;
+        if (type != tLabelLink) {
+          offset = 2;
+          break;
+        }
+      }
+    } else if (type == tLabelEnd) {
+      close = index;
+    }
+  }
+  int openToken = eventToken(events[open]);
+  int group = newToken(t, if (tokens.type[openToken] == tLabelLink) { tLink } else { tImage });
+  tokens.startAtStartOf(group, openToken);
+  tokens.endAtEndOf(group, eventToken(events[events.length - 1]));
+  int label = newToken(t, tLabel);
+  tokens.startAtStartOf(label, openToken);
+  tokens.endAtEndOf(label, eventToken(events[close]));
+  int text = newToken(t, tLabelText);
+  tokens.startAtEndOf(text, eventToken(events[open + offset + 2]));
+  tokens.endAtStartOf(text, eventToken(events[close - 2]));
+
+  int[] media = [enterEvent(group), enterEvent(label)];
+  media = pushAll(media, events.slice(open + 1, open + offset + 3));
+  media = pushAll(media, [enterEvent(text)]);
+  media = pushAll(media, resolveAllOf(t.parser.constructs.insideSpan, events.slice(open + offset + 4, close - 3), t));
+  media = pushAll(media, [exitEvent(text), events[close - 2], events[close - 1], exitEvent(label)]);
+  media = pushAll(media, events.slice(close + 1));
+  media = pushAll(media, [exitEvent(group)]);
+  splice(events, open, events.length, media);
+  return events;
+}
+
+// --- resource, full and collapsed references ------------------------------------------------
+
+Construct resourceConstruct = new Construct(C_NONE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+  func(int)->void resourceEnd = (int code) => {
+    if (code == 41) {
+      t.enter(tResourceMarker);
+      t.consume(code);
+      t.exit(tResourceMarker);
+      t.exit(tResource);
+      t.next = ok;
+      return;
+    }
+    nok(code);
+  };
+  func(int)->void resourceTitleAfter = (int code) => {
+    if (markdownLineEndingOrSpace(code)) {
+      factoryWhitespace(t, resourceEnd)(code);
+    } else {
+      resourceEnd(code);
+    }
+  };
+  func(int)->void resourceBetween = (int code) => {
+    if (code == 34 || code == 39 || code == 40) {
+      factoryTitle(t, resourceTitleAfter, nok, tResourceTitle, tResourceTitleMarker, tResourceTitleString)(code);
+      return;
+    }
+    resourceEnd(code);
+  };
+  func(int)->void resourceDestinationAfter = (int code) => {
+    if (markdownLineEndingOrSpace(code)) {
+      factoryWhitespace(t, resourceBetween)(code);
+    } else {
+      resourceEnd(code);
+    }
+  };
+  func(int)->void resourceDestinationMissing = (int code) => {
+    nok(code);
+  };
+  func(int)->void resourceOpen = (int code) => {
+    if (code == 41) {
+      resourceEnd(code);
+      return;
+    }
+    factoryDestination(t, resourceDestinationAfter, resourceDestinationMissing, tResourceDestination, tResourceDestinationLiteral, tResourceDestinationLiteralMarker, tResourceDestinationRaw, tResourceDestinationString, 32)(code);
+  };
+  func(int)->void resourceBefore = (int code) => {
+    if (markdownLineEndingOrSpace(code)) {
+      factoryWhitespace(t, resourceOpen)(code);
+    } else {
+      resourceOpen(code);
+    }
+  };
+  return (int code) => {
+    t.enter(tResource);
+    t.enter(tResourceMarker);
+    t.consume(code);
+    t.exit(tResourceMarker);
+    t.next = resourceBefore;
+  };
+});
+
+Construct referenceFullConstruct = new Construct(C_NONE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+  func(int)->void referenceFullAfter = (int code) => {
+    string label = t.sliceSerialize(eventToken(t.events[t.events.length - 1]), false);
+    if (t.parser.defines(normalizeIdentifier(label.slice(1, label.length - 1)), ID_DEFINITION)) {
+      ok(code);
+    } else {
+      nok(code);
+    }
+  };
+  func(int)->void referenceFullMissing = (int code) => {
+    nok(code);
+  };
+  return (int code) => {
+    factoryLabel(t, referenceFullAfter, referenceFullMissing, tReference, tReferenceMarker, tReferenceString)(code);
+  };
+});
+
+Construct referenceCollapsedConstruct = new Construct(C_NONE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+  func(int)->void referenceCollapsedOpen = (int code) => {
+    if (code == 93) {
+      t.enter(tReferenceMarker);
+      t.consume(code);
+      t.exit(tReferenceMarker);
+      t.exit(tReference);
+      t.next = ok;
+      return;
+    }
+    nok(code);
+  };
+  return (int code) => {
+    t.enter(tReference);
+    t.enter(tReferenceMarker);
+    t.consume(code);
+    t.exit(tReferenceMarker);
+    t.next = referenceCollapsedOpen;
+  };
+});
+
+// --- label end ------------------------------------------------------------------------------
+
+export Construct labelEnd = makeLabelEnd();
+
+Construct makeLabelEnd() {
+  Construct c = new Construct(C_LABEL_END, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    Tokens tokens = t.tokens;
+    int index = t.events.length;
+    int labelStart = -1;
+    bool defined = false;
+    while (index-- > 0) {
+      int token = eventToken(t.events[index]);
+      int type = tokens.type[token];
+      if ((type == tLabelImage || type == tLabelLink) && !tokens.has(token, F_BALANCED)) {
+        labelStart = token;
+        break;
+      }
+    }
+    func(int)->void labelEndOk = (int code) => {
+      ok(code);
+    };
+    func(int)->void labelEndNok = (int code) => {
+      tokens.set(labelStart, F_BALANCED);
+      nok(code);
+    };
+    func(int)->void referenceNotFull = (int code) => {
+      t.attemptOne(referenceCollapsedConstruct, labelEndOk, labelEndNok)(code);
+    };
+    func(int)->void after = (int code) => {
+      if (code == 40) {
+        t.attemptOne(resourceConstruct, labelEndOk, if (defined) { labelEndOk } else { labelEndNok })(code);
+        return;
+      }
+      if (code == 91) {
+        t.attemptOne(referenceFullConstruct, labelEndOk, if (defined) { referenceNotFull } else { labelEndNok })(code);
+        return;
+      }
+      if (defined) {
+        labelEndOk(code);
+      } else {
+        labelEndNok(code);
+      }
+    };
+    return (int code) => {
+      if (labelStart < 0) {
+        nok(code);
+        return;
+      }
+      if (tokens.has(labelStart, F_INACTIVE)) {
+        labelEndNok(code);
+        return;
+      }
+      defined = t.parser.defines(normalizeIdentifier(t.serialize(tokens.eIndex[labelStart], t.index, tokens.eOffset[labelStart], false)), ID_DEFINITION);
+      t.enter(tLabelEnd);
+      t.enter(tLabelMarker);
+      t.consume(code);
+      t.exit(tLabelMarker);
+      t.exit(tLabelEnd);
+      t.next = after;
+    };
+  });
+  c.resolveAll = labelEndResolver;
+  c.hasResolveTo = true;
+  c.resolveTo = resolveToLabelEnd;
+  return c;
+}
+
+// --- label starts ---------------------------------------------------------------------------
+
+export Construct labelStartImage = makeLabelStartImage();
+
+Construct makeLabelStartImage() {
+  Construct c = new Construct(C_LABEL_START_IMAGE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    func(int)->void after = (int code) => {
+      if (code == 94 && t.parser.constructs.hiddenFootnoteSupport) {
+        nok(code);
+      } else {
+        ok(code);
+      }
+    };
+    func(int)->void open = (int code) => {
+      if (code == 91) {
+        t.enter(tLabelMarker);
+        t.consume(code);
+        t.exit(tLabelMarker);
+        t.exit(tLabelImage);
+        t.next = after;
+        return;
+      }
+      nok(code);
+    };
+    return (int code) => {
+      t.enter(tLabelImage);
+      t.enter(tLabelImageMarker);
+      t.consume(code);
+      t.exit(tLabelImageMarker);
+      t.next = open;
+    };
+  });
+  c.resolveAll = labelEndResolver;
+  return c;
+}
+
+export Construct labelStartLink = makeLabelStartLink();
+
+Construct makeLabelStartLink() {
+  Construct c = new Construct(C_LABEL_START_LINK, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    func(int)->void after = (int code) => {
+      if (code == 94 && t.parser.constructs.hiddenFootnoteSupport) {
+        nok(code);
+      } else {
+        ok(code);
+      }
+    };
+    return (int code) => {
+      t.enter(tLabelLink);
+      t.enter(tLabelMarker);
+      t.consume(code);
+      t.exit(tLabelMarker);
+      t.exit(tLabelLink);
+      t.next = after;
+    };
+  });
+  c.resolveAll = labelEndResolver;
+  return c;
+}

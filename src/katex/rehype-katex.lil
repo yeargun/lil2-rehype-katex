@@ -1,0 +1,125 @@
+// rehype-katex 7.0.1: math elements (flagged `HN_LANGUAGE_MATH`, `HN_MATH_INLINE`, `HN_MATH_DISPLAY`, where
+// upstream reads their classes) are replaced by KaTeX's rendering, parsed into the hast arena. KaTeX itself is
+// the `katex` package, as upstream uses it.
+
+import { katex } from "./host.lil";
+extern JsValue Object;
+extern JsValue String;
+
+import { H_ELEMENT, H_TEXT, HN_LANGUAGE_MATH, HN_MATH_DISPLAY, HN_MATH_INLINE, P_LIST, P_STRING, PROP_CLASS_NAME, PROP_TITLE, TAG_CODE, TAG_PRE, TAG_SPAN, Hast, defineProp } from "../hast/hast.lil";
+import { parseHtml } from "./parse.lil";
+
+// hast-util-to-text with `whitespace: 'pre'`, for what math elements hold: their text, in order.
+string textOf(Hast h, int node) {
+  if (h.kind[node] == H_TEXT) {
+    return h.value[node];
+  }
+  string result = "";
+  int child = h.firstChild[node];
+  while (child >= 0) {
+    result += textOf(h, child);
+    child = h.nextSibling[child];
+  }
+  return result;
+}
+
+// `{...settings, ...extra}` for KaTeX.
+JsValue options(JsValue settings, JsValue extra) {
+  return JS.invoke(Object, "assign", object {}, settings, extra);
+}
+
+// What replaces one math element: KaTeX's HTML, or upstream's error element when KaTeX throws twice.
+int[] render(Hast h, string value, bool displayMode, JsValue settings) {
+  JsValue html = JS.undefined();
+  try {
+    html = JS.invoke(katex, "renderToString", value, options(settings, object {displayMode: displayMode, throwOnError: true}));
+  } catch (JsValue error) {
+    // Upstream reports the error on the file (react-markdown never reads it) and renders without throwing.
+    try {
+      html = JS.invoke(katex, "renderToString", value, options(settings, object {displayMode: displayMode, strict: "ignore", throwOnError: false}));
+    } catch (JsValue other) {
+      int span = h.element(TAG_SPAN);
+      h.setProperty(span, PROP_CLASS_NAME, P_LIST, "katex-error", 0);
+      JsValue color = if (bool(settings)) { settings["errorColor"] } else { JS.undefined() };
+      int style = defineProp("style", "style", "style", false, false);
+      string colorText = if (bool(color)) { JS.assume(String(color)) } else { "#cc0000" };
+      string title = JS.assume(String(error));
+      h.setProperty(span, style, P_STRING, "color:" + colorText, 0);
+      h.setProperty(span, PROP_TITLE, P_STRING, title, 0);
+      h.append(span, h.text(value));
+      return [span];
+    }
+  }
+  return parseHtml(h, JS.assume(html));
+}
+
+// Puts `nodes` where `scope` is, in its parent's children.
+void replace(Hast h, int parent, int scope, int[] nodes) {
+  int previous = h.previousSibling[scope];
+  int next = h.nextSibling[scope];
+  int last = previous;
+  for (int node of nodes) {
+    h.parent[node] = parent;
+    h.previousSibling[node] = last;
+    if (last >= 0) {
+      h.nextSibling[last] = node;
+    } else {
+      h.firstChild[parent] = node;
+    }
+    last = node;
+  }
+  if (last >= 0) {
+    h.nextSibling[last] = next;
+  } else {
+    h.firstChild[parent] = next;
+  }
+  if (next >= 0) {
+    h.previousSibling[next] = last;
+  } else {
+    h.lastChild[parent] = last;
+  }
+}
+
+// unist-util-visit-parents over elements, preorder; a replaced element is skipped (`SKIP`).
+void visit(Hast h, int parent, JsValue settings) {
+  int child = h.firstChild[parent];
+  while (child >= 0) {
+    int next = h.nextSibling[child];
+    if (h.kind[child] == H_ELEMENT) {
+      int flags = h.flags[child];
+      bool languageMath = (flags & HN_LANGUAGE_MATH) != 0;
+      bool mathDisplay = (flags & HN_MATH_DISPLAY) != 0;
+      if (!languageMath && !mathDisplay && (flags & HN_MATH_INLINE) == 0) {
+        visit(h, child, settings);
+      } else {
+        int scope = child;
+        int scopeParent = parent;
+        bool displayMode = mathDisplay;
+        // ` ```math `: the `pre` goes, in display mode.
+        if (h.tag[child] == TAG_CODE && languageMath && h.kind[parent] == H_ELEMENT && h.tag[parent] == TAG_PRE) {
+          if (h.parent[parent] < 0) {
+            // No parent to replace the `pre` in: upstream leaves it, and walks on into it.
+            visit(h, child, settings);
+            child = next;
+            continue;
+          }
+          scope = parent;
+          scopeParent = h.parent[parent];
+          displayMode = true;
+        }
+        int[] nodes = render(h, textOf(h, scope), displayMode, settings);
+        replace(h, scopeParent, scope, nodes);
+        if (scope != child) {
+          // The `pre` is gone; its parent's walk continues after it.
+          return;
+        }
+      }
+    }
+    child = next;
+  }
+}
+
+// `rehypeKatex(settings)(tree)` on the hast whose root is `root`.
+export void rehypeKatex(Hast h, int root, JsValue settings) {
+  visit(h, root, settings);
+}

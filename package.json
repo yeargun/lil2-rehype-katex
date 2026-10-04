@@ -1,0 +1,49 @@
+{
+  "name": "@itslil/lil2-rehype-katex",
+  "version": "0.0.0",
+  "private": true,
+  "description": "rehype-katex, rewritten in typed LilScript: KaTeX output as an int-vocabulary hast arena, same trees",
+  "type": "module",
+  "license": "MIT",
+  "author": "yeargun",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yeargun/lil2-rehype-katex.git"
+  },
+  "homepage": "https://yeargun.github.io/lil2-rehype-katex/",
+  "main": "./dist/rehype-katex.js",
+  "exports": {
+    ".": {
+      "convex": "./dist/rehype-katex.js",
+      "deno": "./dist/rehype-katex.js",
+      "edge-light": "./dist/rehype-katex.js",
+      "react-native": "./dist/rehype-katex.js",
+      "worker": "./dist/rehype-katex.js",
+      "workerd": "./dist/rehype-katex.js",
+      "browser": "./dist/browser/rehype-katex.js",
+      "default": "./dist/rehype-katex.js"
+    }
+  },
+  "scripts": {
+    "check:sources": "node scripts/shared-sources.mjs",
+    "generate": "node scripts/generate-vocabulary.mjs",
+    "build:dev": "node scripts/build.mjs --dev",
+    "build": "node scripts/build.mjs",
+    "test": "npm run check:sources && node --test test/differential.test.mjs test/browser.test.mjs"
+  },
+  "dependencies": {
+    "katex": "^0.16.22"
+  },
+  "devDependencies": {
+    "character-entities": "^2.0.2",
+    "commonmark.json": "^0.31.0",
+    "mdast-util-from-markdown": "^2.0.3",
+    "mdast-util-math": "^3.0.0",
+    "mdast-util-to-hast": "^13.2.1",
+    "micromark-extension-math": "^3.1.0",
+    "playwright-core": "^1.62.0",
+    "property-information": "^7.2.0",
+    "rehype-katex": "^7.0.1",
+    "remark-math": "^6.0.0"
+  }
+}

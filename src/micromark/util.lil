@@ -1,0 +1,213 @@
+// micromark-util-decode-numeric-character-reference, -decode-string, -normalize-identifier,
+// -encode, -sanitize-uri and decode-named-character-reference.
+
+import { asciiAlphanumeric, charOf } from "./codes.lil";
+import { characterEntities } from "./entities.lil";
+
+extern JsValue String;
+extern JsValue Object;
+extern JsValue encodeURIComponent;
+extern JsValue document;
+
+// The browser build (the package's `browser` condition) decodes named references with the document's own
+// HTML parser, as decode-named-character-reference's `index.dom.js` does: the 2,125-entry table is neither
+// downloaded nor unpacked at load. Every reference is decoded twice (the tokenizer checks it, the compiler
+// decodes it), so valid ones are remembered; there are at most 2,231 of them.
+// `entities` is chosen at module initialization: a define read inside a function stays a runtime value when
+// the program imports a host module (React), and only this keeps the table out of such a browser build.
+export define bool BROWSER = false;
+JsValue entities = if (BROWSER) { JS.undefined() } else { characterEntities };
+JsValue decoder = if (BROWSER) { JS.invoke(document, "createElement", "i") } else { JS.undefined() };
+Map<string, string> decoded = new Map<string, string>();
+
+string? decodeInDocument(string name) {
+  string? known = decoded.get(name);
+  if (known != null) {
+    return known;
+  }
+  string reference = "&" + name + ";";
+  JS.set(decoder, "innerHTML", reference);
+  string character = JS.assume(JS.get(decoder, "textContent"));
+  // `&notit;` reads `¬it;`: a trailing `;` (unless the name is `semi`) means only a prefix matched.
+  if ((character.codeUnitAt(character.length - 1) == 59 && name != "semi") || character == reference) {
+    return null;
+  }
+  decoded.set(name, character);
+  return character;
+}
+
+// The value of a named reference without `&` and `;`, or null.
+export string? decodeNamed(string name) {
+  if (BROWSER) {
+    return decodeInDocument(name);
+  }
+  if (bool(Object.hasOwn(entities, name))) {
+    return JS.assume(entities[name]);
+  }
+  return null;
+}
+
+int digitValue(int c) {
+  if (c >= 48 && c <= 57) {
+    return c - 48;
+  }
+  if (c >= 97 && c <= 102) {
+    return c - 87;
+  }
+  if (c >= 65 && c <= 70) {
+    return c - 55;
+  }
+  return 99;
+}
+
+// `Number.parseInt(value, base)` for the digit runs the grammar admits (at most 7 decimal or 6 hex
+// digits, so the result fits an int).
+int parseDigits(string value, int base) {
+  int result = 0;
+  for (int index = 0; index < value.length; index++) {
+    result = result * base + digitValue(value.codeUnitAt(index));
+  }
+  return result;
+}
+
+export string decodeNumeric(string value, int base) {
+  int code = parseDigits(value, base);
+  if (code < 9 || code == 11 || (code > 13 && code < 32) || (code > 126 && code < 160) ||
+      (code > 55295 && code < 57344) || (code > 64975 && code < 65008) ||
+      (code & 65535) == 65535 || (code & 65535) == 65534 || code > 1114111) {
+    return "�";
+  }
+  return JS.assume(String.fromCodePoint(code));
+}
+
+Regex characterEscapeOrReference = new Regex("\\\\([!-/:-@[-`{-~])|&(#(?:\\d{1,7}|x[\\da-f]{1,6})|[\\da-z]{1,31});", "gi");
+
+export string decodeString(string value) {
+  string result = "";
+  int start = 0;
+  characterEscapeOrReference.lastIndex = 0;
+  while (true) {
+    JsValue found = characterEscapeOrReference.exec(value);
+    if (JS.isNullish(found)) {
+      break;
+    }
+    int at = JS.assume(found.index);
+    string whole = JS.assume(found[0]);
+    string replacement = whole;
+    if (!JS.isUndefined(found[1])) {
+      replacement = JS.assume(found[1]);
+    } else {
+      string reference = JS.assume(found[2]);
+      if (reference.codeUnitAt(0) == 35) {
+        int head = if (reference.length > 1) { reference.codeUnitAt(1) } else { 0 };
+        bool hex = head == 120 || head == 88;
+        replacement = decodeNumeric(reference.slice(if (hex) { 2 } else { 1 }), if (hex) { 16 } else { 10 });
+      } else {
+        replacement = decodeNamed(reference) ?? whole;
+      }
+    }
+    result += value.slice(start, at) + replacement;
+    start = at + whole.length;
+  }
+  return result + value.slice(start);
+}
+
+Regex whitespaceRun = new Regex("[\\t\\n\\r ]+", "g");
+Regex edgeSpace = new Regex("^ | $", "g");
+
+export string normalizeIdentifier(string value) {
+  return value.replace(whitespaceRun, " ").replace(edgeSpace, "").toLowerCase().toUpperCase();
+}
+
+// micromark-util-encode.
+export string encode(string value) {
+  string result = "";
+  int start = 0;
+  for (int index = 0; index < value.length; index++) {
+    int code = value.codeUnitAt(index);
+    string name = "";
+    if (code == 34) {
+      name = "quot";
+    } else if (code == 38) {
+      name = "amp";
+    } else if (code == 60) {
+      name = "lt";
+    } else if (code == 62) {
+      name = "gt";
+    }
+    if (name != "") {
+      result += value.slice(start, index) + "&" + name + ";";
+      start = index + 1;
+    }
+  }
+  return result + value.slice(start);
+}
+
+// [!#$&-;=?-Z_a-z~]
+bool uriSafe(int code) {
+  return code == 33 || code == 35 || code == 36 || (code >= 38 && code <= 59) || code == 61 ||
+    (code >= 63 && code <= 90) || code == 95 || (code >= 97 && code <= 122) || code == 126;
+}
+
+string encodeComponent(string value) {
+  return JS.assume(encodeURIComponent(value));
+}
+
+bool alnumAt(string value, int index) {
+  return index < value.length && asciiAlphanumeric(value.codeUnitAt(index));
+}
+
+export string normalizeUri(string value) {
+  string result = "";
+  int index = 0;
+  int start = 0;
+  int skip = 0;
+  while (index < value.length) {
+    int code = value.codeUnitAt(index);
+    string replace = "";
+    if (code == 37 && alnumAt(value, index + 1) && alnumAt(value, index + 2)) {
+      skip = 2;
+    } else if (code < 128) {
+      if (!uriSafe(code)) {
+        replace = charOf(code);
+      }
+    } else if (code > 55295 && code < 57344) {
+      int next = if (index + 1 < value.length) { value.codeUnitAt(index + 1) } else { 0 };
+      if (code < 56320 && next > 56319 && next < 57344) {
+        replace = charOf(code) + charOf(next);
+        skip = 1;
+      } else {
+        replace = "�";
+      }
+    } else {
+      replace = charOf(code);
+    }
+    if (replace != "") {
+      result += value.slice(start, index) + encodeComponent(replace);
+      start = index + skip + 1;
+    }
+    if (skip != 0) {
+      index += skip;
+      skip = 0;
+    }
+    index++;
+  }
+  return result + value.slice(start);
+}
+
+// `protocol` null means any protocol is allowed.
+export string sanitizeUri(string url, Regex? protocol) {
+  string value = encode(normalizeUri(url));
+  if (protocol == null) {
+    return value;
+  }
+  int colon = value.indexOf(":");
+  int questionMark = value.indexOf("?");
+  int numberSign = value.indexOf("#");
+  int slash = value.indexOf("/");
+  if (colon < 0 || (slash > -1 && colon > slash) || (questionMark > -1 && colon > questionMark) ||
+      (numberSign > -1 && colon > numberSign) || protocol.test(value.slice(0, colon))) {
+    return value;
+  }
+  return "";
+}

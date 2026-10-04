@@ -1,0 +1,420 @@
+// micromark-core-commonmark: code-fenced, content, definition.
+
+import { EOF, TAB_SIZE, markdownLineEnding, markdownLineEndingOrSpace, markdownSpace } from "../codes.lil";
+import { tChunkContent, tChunkString, tCodeFenced, tCodeFencedFence, tCodeFencedFenceInfo, tCodeFencedFenceMeta, tCodeFencedFenceSequence, tCodeFlowValue, tContent, tDefinition, tDefinitionDestination, tDefinitionDestinationLiteral, tDefinitionDestinationLiteralMarker, tDefinitionDestinationRaw, tDefinitionDestinationString, tDefinitionLabel, tDefinitionLabelMarker, tDefinitionLabelString, tDefinitionMarker, tDefinitionTitle, tDefinitionTitleMarker, tDefinitionTitleString, tLineEnding, tLinePrefix, tWhitespace } from "../types.lil";
+import { CT_CONTENT, CT_STRING, C_CODE_FENCED, C_CODE_INDENTED, C_DEFINITION, C_NONE, ID_DEFINITION, Construct, Tokenizer, eventToken, noState, serializeToken } from "../tokenizer.lil";
+import { factoryDestination, factoryLabel, factorySpace, factoryTitle, factoryWhitespace } from "../factories.lil";
+import { subtokenize } from "../subtokenize.lil";
+import { normalizeIdentifier } from "../util.lil";
+
+int tailPrefixSize(Tokenizer t) {
+  if (t.events.length == 0) {
+    return -1;
+  }
+  int tail = eventToken(t.events[t.events.length - 1]);
+  if (t.tokens.type[tail] != tLinePrefix) {
+    return -1;
+  }
+  return serializeToken(t.parser, tail, true).length;
+}
+
+// --- fenced code ----------------------------------------------------------------------------
+
+Construct nonLazyContinuation = makeNonLazyContinuation();
+
+Construct makeNonLazyContinuation() {
+  Construct c = new Construct(C_NONE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    func(int)->void lineStart = (int code) => {
+      if (t.parser.isLazy(t.line)) {
+        nok(code);
+      } else {
+        ok(code);
+      }
+    };
+    return (int code) => {
+      if (code == EOF) {
+        nok(code);
+        return;
+      }
+      t.enter(tLineEnding);
+      t.consume(code);
+      t.exit(tLineEnding);
+      t.next = lineStart;
+    };
+  });
+  c.partial = true;
+  return c;
+}
+
+export Construct nonLazyContinuationConstruct = nonLazyContinuation;
+
+export Construct codeFenced = makeCodeFenced();
+
+Construct makeCodeFenced() {
+  Construct c = new Construct(C_CODE_FENCED, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    int initialPrefix = 0;
+    int sizeOpen = 0;
+    int marker = 0;
+
+    Construct closeStart = new Construct(C_NONE, (Tokenizer ct, bool closeInterrupt, func(int)->void closeOk, func(int)->void closeNok) => {
+      int size = 0;
+      func(int)->void sequenceCloseAfter = (int code) => {
+        if (code == EOF || markdownLineEnding(code)) {
+          ct.exit(tCodeFencedFence);
+          closeOk(code);
+          return;
+        }
+        closeNok(code);
+      };
+      func(int)->void sequenceClose = noState;
+      sequenceClose = (int code) => {
+        if (code == marker) {
+          size++;
+          ct.consume(code);
+          ct.next = sequenceClose;
+          return;
+        }
+        if (size >= sizeOpen) {
+          ct.exit(tCodeFencedFenceSequence);
+          if (markdownSpace(code)) {
+            factorySpace(ct, sequenceCloseAfter, tWhitespace, 0)(code);
+          } else {
+            sequenceCloseAfter(code);
+          }
+          return;
+        }
+        closeNok(code);
+      };
+      func(int)->void beforeSequenceClose = (int code) => {
+        if (code == marker) {
+          ct.enter(tCodeFencedFenceSequence);
+          sequenceClose(code);
+          return;
+        }
+        closeNok(code);
+      };
+      func(int)->void start = (int code) => {
+        ct.enter(tCodeFencedFence);
+        if (markdownSpace(code)) {
+          int max = if (t.parser.constructs.disabled[C_CODE_INDENTED]) { 0 } else { TAB_SIZE };
+          factorySpace(ct, beforeSequenceClose, tLinePrefix, max)(code);
+        } else {
+          beforeSequenceClose(code);
+        }
+      };
+      return (int code) => {
+        ct.enter(tLineEnding);
+        ct.consume(code);
+        ct.exit(tLineEnding);
+        ct.next = start;
+      };
+    });
+    closeStart.partial = true;
+
+    func(int)->void infoBefore = noState;
+    func(int)->void info = noState;
+    func(int)->void meta = noState;
+    func(int)->void atNonLazyBreak = noState;
+    func(int)->void beforeContentChunk = noState;
+    func(int)->void contentChunk = noState;
+
+    func(int)->void after = (int code) => {
+      t.exit(tCodeFenced);
+      ok(code);
+    };
+
+    func(int)->void sequenceOpen = noState;
+    sequenceOpen = (int code) => {
+      if (code == marker) {
+        sizeOpen++;
+        t.consume(code);
+        t.next = sequenceOpen;
+        return;
+      }
+      if (sizeOpen < 3) {
+        nok(code);
+        return;
+      }
+      t.exit(tCodeFencedFenceSequence);
+      if (markdownSpace(code)) {
+        factorySpace(t, infoBefore, tWhitespace, 0)(code);
+      } else {
+        infoBefore(code);
+      }
+    };
+
+    infoBefore = (int code) => {
+      if (code == EOF || markdownLineEnding(code)) {
+        t.exit(tCodeFencedFence);
+        if (interrupt || t.interrupt) {
+          ok(code);
+        } else {
+          t.checkOne(nonLazyContinuation, atNonLazyBreak, after)(code);
+        }
+        return;
+      }
+      t.enter(tCodeFencedFenceInfo);
+      int chunk = t.enter(tChunkString);
+      t.tokens.contentType[chunk] = CT_STRING;
+      info(code);
+    };
+
+    func(int)->void metaBefore = (int code) => {
+      if (code == EOF || markdownLineEnding(code)) {
+        infoBefore(code);
+        return;
+      }
+      t.enter(tCodeFencedFenceMeta);
+      int chunk = t.enter(tChunkString);
+      t.tokens.contentType[chunk] = CT_STRING;
+      meta(code);
+    };
+
+    info = (int code) => {
+      if (code == EOF || markdownLineEnding(code)) {
+        t.exit(tChunkString);
+        t.exit(tCodeFencedFenceInfo);
+        infoBefore(code);
+        return;
+      }
+      if (markdownSpace(code)) {
+        t.exit(tChunkString);
+        t.exit(tCodeFencedFenceInfo);
+        factorySpace(t, metaBefore, tWhitespace, 0)(code);
+        return;
+      }
+      if (code == 96 && code == marker) {
+        nok(code);
+        return;
+      }
+      t.consume(code);
+      t.next = info;
+    };
+
+    meta = (int code) => {
+      if (code == EOF || markdownLineEnding(code)) {
+        t.exit(tChunkString);
+        t.exit(tCodeFencedFenceMeta);
+        infoBefore(code);
+        return;
+      }
+      if (code == 96 && code == marker) {
+        nok(code);
+        return;
+      }
+      t.consume(code);
+      t.next = meta;
+    };
+
+    func(int)->void contentStart = (int code) => {
+      if (initialPrefix > 0 && markdownSpace(code)) {
+        factorySpace(t, beforeContentChunk, tLinePrefix, initialPrefix + 1)(code);
+      } else {
+        beforeContentChunk(code);
+      }
+    };
+
+    func(int)->void contentBefore = (int code) => {
+      t.enter(tLineEnding);
+      t.consume(code);
+      t.exit(tLineEnding);
+      t.next = contentStart;
+    };
+
+    atNonLazyBreak = (int code) => {
+      t.attemptOne(closeStart, after, contentBefore)(code);
+    };
+
+    beforeContentChunk = (int code) => {
+      if (code == EOF || markdownLineEnding(code)) {
+        t.checkOne(nonLazyContinuation, atNonLazyBreak, after)(code);
+        return;
+      }
+      t.enter(tCodeFlowValue);
+      contentChunk(code);
+    };
+
+    contentChunk = (int code) => {
+      if (code == EOF || markdownLineEnding(code)) {
+        t.exit(tCodeFlowValue);
+        beforeContentChunk(code);
+        return;
+      }
+      t.consume(code);
+      t.next = contentChunk;
+    };
+
+    return (int code) => {
+      int size = tailPrefixSize(t);
+      initialPrefix = if (size < 0) { 0 } else { size };
+      marker = code;
+      t.enter(tCodeFenced);
+      t.enter(tCodeFencedFence);
+      t.enter(tCodeFencedFenceSequence);
+      sequenceOpen(code);
+    };
+  });
+  c.concrete = true;
+  return c;
+}
+
+// --- content --------------------------------------------------------------------------------
+
+Construct continuationConstruct = makeContinuation();
+
+Construct makeContinuation() {
+  Construct c = new Construct(C_NONE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    func(int)->void prefixed = (int code) => {
+      if (code == EOF || markdownLineEnding(code)) {
+        nok(code);
+        return;
+      }
+      if (!t.parser.constructs.disabled[C_CODE_INDENTED] && tailPrefixSize(t) >= TAB_SIZE) {
+        ok(code);
+        return;
+      }
+      t.interruptMap(t.parser.constructs.flow, nok, ok)(code);
+    };
+    return (int code) => {
+      t.exit(tChunkContent);
+      t.enter(tLineEnding);
+      t.consume(code);
+      t.exit(tLineEnding);
+      t.next = factorySpace(t, prefixed, tLinePrefix, 0);
+    };
+  });
+  c.partial = true;
+  return c;
+}
+
+export Construct content = makeContent();
+
+Construct makeContent() {
+  Construct c = new Construct(C_NONE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    int previous = -1;
+    func(int)->void chunkInside = noState;
+    func(int)->void contentEnd = (int code) => {
+      t.exit(tChunkContent);
+      t.exit(tContent);
+      ok(code);
+    };
+    func(int)->void contentContinue = (int code) => {
+      t.consume(code);
+      t.exit(tChunkContent);
+      int chunk = t.enter(tChunkContent);
+      t.tokens.contentType[chunk] = CT_CONTENT;
+      t.tokens.previous[chunk] = previous;
+      t.tokens.next[previous] = chunk;
+      previous = chunk;
+      t.next = chunkInside;
+    };
+    chunkInside = (int code) => {
+      if (code == EOF) {
+        contentEnd(code);
+        return;
+      }
+      if (markdownLineEnding(code)) {
+        t.checkOne(continuationConstruct, contentContinue, contentEnd)(code);
+        return;
+      }
+      t.consume(code);
+      t.next = chunkInside;
+    };
+    return (int code) => {
+      t.enter(tContent);
+      previous = t.enter(tChunkContent);
+      t.tokens.contentType[previous] = CT_CONTENT;
+      chunkInside(code);
+    };
+  });
+  c.hasResolve = true;
+  c.resolve = (int[] events, Tokenizer t) => {
+    subtokenize(events, t.parser);
+    return events;
+  };
+  return c;
+}
+
+// --- definition -----------------------------------------------------------------------------
+
+Construct titleBefore = makeTitleBefore();
+
+Construct makeTitleBefore() {
+  Construct c = new Construct(C_NONE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    func(int)->void titleAfterOptionalWhitespace = (int code) => {
+      if (code == EOF || markdownLineEnding(code)) {
+        ok(code);
+      } else {
+        nok(code);
+      }
+    };
+    func(int)->void titleAfter = (int code) => {
+      if (markdownSpace(code)) {
+        factorySpace(t, titleAfterOptionalWhitespace, tWhitespace, 0)(code);
+      } else {
+        titleAfterOptionalWhitespace(code);
+      }
+    };
+    func(int)->void beforeMarker = (int code) => {
+      factoryTitle(t, titleAfter, nok, tDefinitionTitle, tDefinitionTitleMarker, tDefinitionTitleString)(code);
+    };
+    return (int code) => {
+      if (markdownLineEndingOrSpace(code)) {
+        factoryWhitespace(t, beforeMarker)(code);
+      } else {
+        nok(code);
+      }
+    };
+  });
+  c.partial = true;
+  return c;
+}
+
+export Construct definition = new Construct(C_DEFINITION, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+  string identifier = "";
+  func(int)->void afterWhitespace = (int code) => {
+    if (code == EOF || markdownLineEnding(code)) {
+      t.exit(tDefinition);
+      t.parser.define(identifier, ID_DEFINITION);
+      ok(code);
+      return;
+    }
+    nok(code);
+  };
+  func(int)->void after = (int code) => {
+    if (markdownSpace(code)) {
+      factorySpace(t, afterWhitespace, tWhitespace, 0)(code);
+    } else {
+      afterWhitespace(code);
+    }
+  };
+  func(int)->void destinationAfter = (int code) => {
+    t.attemptOne(titleBefore, after, after)(code);
+  };
+  func(int)->void destinationBefore = (int code) => {
+    factoryDestination(t, destinationAfter, nok, tDefinitionDestination, tDefinitionDestinationLiteral, tDefinitionDestinationLiteralMarker, tDefinitionDestinationRaw, tDefinitionDestinationString, 0)(code);
+  };
+  func(int)->void markerAfter = (int code) => {
+    if (markdownLineEndingOrSpace(code)) {
+      factoryWhitespace(t, destinationBefore)(code);
+    } else {
+      destinationBefore(code);
+    }
+  };
+  func(int)->void labelAfter = (int code) => {
+    string label = t.sliceSerialize(eventToken(t.events[t.events.length - 1]), false);
+    identifier = normalizeIdentifier(label.slice(1, label.length - 1));
+    if (code == 58) {
+      t.enter(tDefinitionMarker);
+      t.consume(code);
+      t.exit(tDefinitionMarker);
+      t.next = markerAfter;
+      return;
+    }
+    nok(code);
+  };
+  return (int code) => {
+    t.enter(tDefinition);
+    factoryLabel(t, labelAfter, nok, tDefinitionLabel, tDefinitionLabelMarker, tDefinitionLabelString)(code);
+  };
+});

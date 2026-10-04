@@ -1,0 +1,519 @@
+// micromark-core-commonmark: html-text, autolink.
+
+import { EOF, SPACE, TAB_SIZE, asciiAlpha, asciiAlphanumeric, asciiAtext, asciiControl, markdownLineEnding, markdownLineEndingOrSpace, markdownSpace } from "../codes.lil";
+import { tAutolink, tAutolinkEmail, tAutolinkMarker, tAutolinkProtocol, tHtmlText, tHtmlTextData, tLineEnding, tLinePrefix } from "../types.lil";
+import { C_AUTOLINK, C_CODE_INDENTED, C_HTML_TEXT, Construct, Tokenizer, noState } from "../tokenizer.lil";
+import { factorySpace } from "../factories.lil";
+
+// --- html (text) ----------------------------------------------------------------------------
+
+export Construct htmlText = new Construct(C_HTML_TEXT, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+  int marker = 0;
+  int index = 0;
+  func(int)->void returnState = noState;
+
+  func(int)->void end = (int code) => {
+    if (code == 62) {
+      t.consume(code);
+      t.exit(tHtmlTextData);
+      t.exit(tHtmlText);
+      t.next = ok;
+      return;
+    }
+    nok(code);
+  };
+  func(int)->void lineEndingAfterPrefix = (int code) => {
+    t.enter(tHtmlTextData);
+    returnState(code);
+  };
+  func(int)->void lineEndingAfter = (int code) => {
+    if (markdownSpace(code)) {
+      int max = if (t.parser.constructs.disabled[C_CODE_INDENTED]) { 0 } else { TAB_SIZE };
+      factorySpace(t, lineEndingAfterPrefix, tLinePrefix, max)(code);
+      return;
+    }
+    lineEndingAfterPrefix(code);
+  };
+  func(int)->void lineEndingBefore = (int code) => {
+    t.exit(tHtmlTextData);
+    t.enter(tLineEnding);
+    t.consume(code);
+    t.exit(tLineEnding);
+    t.next = lineEndingAfter;
+  };
+
+  // Comments.
+  func(int)->void comment = noState;
+  func(int)->void commentClose = noState;
+  func(int)->void commentEnd = (int code) => {
+    if (code == 62) {
+      end(code);
+    } else if (code == 45) {
+      commentClose(code);
+    } else {
+      comment(code);
+    }
+  };
+  commentClose = (int code) => {
+    if (code == 45) {
+      t.consume(code);
+      t.next = commentEnd;
+      return;
+    }
+    comment(code);
+  };
+  comment = (int code) => {
+    if (code == EOF) {
+      nok(code);
+      return;
+    }
+    if (code == 45) {
+      t.consume(code);
+      t.next = commentClose;
+      return;
+    }
+    if (markdownLineEnding(code)) {
+      returnState = comment;
+      lineEndingBefore(code);
+      return;
+    }
+    t.consume(code);
+    t.next = comment;
+  };
+  func(int)->void commentOpenInside = (int code) => {
+    if (code == 45) {
+      t.consume(code);
+      t.next = commentEnd;
+      return;
+    }
+    nok(code);
+  };
+
+  // CDATA.
+  func(int)->void cdata = noState;
+  func(int)->void cdataEnd = noState;
+  cdataEnd = (int code) => {
+    if (code == 62) {
+      end(code);
+      return;
+    }
+    if (code == 93) {
+      t.consume(code);
+      t.next = cdataEnd;
+      return;
+    }
+    cdata(code);
+  };
+  func(int)->void cdataClose = (int code) => {
+    if (code == 93) {
+      t.consume(code);
+      t.next = cdataEnd;
+      return;
+    }
+    cdata(code);
+  };
+  cdata = (int code) => {
+    if (code == EOF) {
+      nok(code);
+      return;
+    }
+    if (code == 93) {
+      t.consume(code);
+      t.next = cdataClose;
+      return;
+    }
+    if (markdownLineEnding(code)) {
+      returnState = cdata;
+      lineEndingBefore(code);
+      return;
+    }
+    t.consume(code);
+    t.next = cdata;
+  };
+  func(int)->void cdataOpenInside = noState;
+  cdataOpenInside = (int code) => {
+    string value = "CDATA[";
+    if (index < value.length && code == value.codeUnitAt(index)) {
+      index++;
+      t.consume(code);
+      t.next = if (index == value.length) { cdata } else { cdataOpenInside };
+      return;
+    }
+    nok(code);
+  };
+
+  // Declarations and instructions.
+  func(int)->void declaration = noState;
+  declaration = (int code) => {
+    if (code == EOF || code == 62) {
+      end(code);
+      return;
+    }
+    if (markdownLineEnding(code)) {
+      returnState = declaration;
+      lineEndingBefore(code);
+      return;
+    }
+    t.consume(code);
+    t.next = declaration;
+  };
+  func(int)->void instruction = noState;
+  func(int)->void instructionClose = (int code) => {
+    if (code == 62) {
+      end(code);
+    } else {
+      instruction(code);
+    }
+  };
+  instruction = (int code) => {
+    if (code == EOF) {
+      nok(code);
+      return;
+    }
+    if (code == 63) {
+      t.consume(code);
+      t.next = instructionClose;
+      return;
+    }
+    if (markdownLineEnding(code)) {
+      returnState = instruction;
+      lineEndingBefore(code);
+      return;
+    }
+    t.consume(code);
+    t.next = instruction;
+  };
+
+  // Closing tags.
+  func(int)->void tagCloseBetween = noState;
+  tagCloseBetween = (int code) => {
+    if (markdownLineEnding(code)) {
+      returnState = tagCloseBetween;
+      lineEndingBefore(code);
+      return;
+    }
+    if (markdownSpace(code)) {
+      t.consume(code);
+      t.next = tagCloseBetween;
+      return;
+    }
+    end(code);
+  };
+  func(int)->void tagClose = noState;
+  tagClose = (int code) => {
+    if (code == 45 || asciiAlphanumeric(code)) {
+      t.consume(code);
+      t.next = tagClose;
+      return;
+    }
+    tagCloseBetween(code);
+  };
+  func(int)->void tagCloseStart = (int code) => {
+    if (asciiAlpha(code)) {
+      t.consume(code);
+      t.next = tagClose;
+      return;
+    }
+    nok(code);
+  };
+
+  // Opening tags.
+  func(int)->void tagOpenBetween = noState;
+  func(int)->void tagOpenAttributeName = noState;
+  func(int)->void tagOpenAttributeNameAfter = noState;
+  func(int)->void tagOpenAttributeValueBefore = noState;
+  func(int)->void tagOpenAttributeValueQuoted = noState;
+  func(int)->void tagOpenAttributeValueUnquoted = noState;
+  func(int)->void tagOpenAttributeValueQuotedAfter = (int code) => {
+    if (code == 47 || code == 62 || markdownLineEndingOrSpace(code)) {
+      tagOpenBetween(code);
+      return;
+    }
+    nok(code);
+  };
+  tagOpenAttributeValueUnquoted = (int code) => {
+    if (code == EOF || code == 34 || code == 39 || code == 60 || code == 61 || code == 96) {
+      nok(code);
+      return;
+    }
+    if (code == 47 || code == 62 || markdownLineEndingOrSpace(code)) {
+      tagOpenBetween(code);
+      return;
+    }
+    t.consume(code);
+    t.next = tagOpenAttributeValueUnquoted;
+  };
+  tagOpenAttributeValueQuoted = (int code) => {
+    if (code == marker) {
+      t.consume(code);
+      marker = 0;
+      t.next = tagOpenAttributeValueQuotedAfter;
+      return;
+    }
+    if (code == EOF) {
+      nok(code);
+      return;
+    }
+    if (markdownLineEnding(code)) {
+      returnState = tagOpenAttributeValueQuoted;
+      lineEndingBefore(code);
+      return;
+    }
+    t.consume(code);
+    t.next = tagOpenAttributeValueQuoted;
+  };
+  tagOpenAttributeValueBefore = (int code) => {
+    if (code == EOF || code == 60 || code == 61 || code == 62 || code == 96) {
+      nok(code);
+      return;
+    }
+    if (code == 34 || code == 39) {
+      t.consume(code);
+      marker = code;
+      t.next = tagOpenAttributeValueQuoted;
+      return;
+    }
+    if (markdownLineEnding(code)) {
+      returnState = tagOpenAttributeValueBefore;
+      lineEndingBefore(code);
+      return;
+    }
+    if (markdownSpace(code)) {
+      t.consume(code);
+      t.next = tagOpenAttributeValueBefore;
+      return;
+    }
+    t.consume(code);
+    t.next = tagOpenAttributeValueUnquoted;
+  };
+  tagOpenAttributeNameAfter = (int code) => {
+    if (code == 61) {
+      t.consume(code);
+      t.next = tagOpenAttributeValueBefore;
+      return;
+    }
+    if (markdownLineEnding(code)) {
+      returnState = tagOpenAttributeNameAfter;
+      lineEndingBefore(code);
+      return;
+    }
+    if (markdownSpace(code)) {
+      t.consume(code);
+      t.next = tagOpenAttributeNameAfter;
+      return;
+    }
+    tagOpenBetween(code);
+  };
+  tagOpenAttributeName = (int code) => {
+    if (code == 45 || code == 46 || code == 58 || code == 95 || asciiAlphanumeric(code)) {
+      t.consume(code);
+      t.next = tagOpenAttributeName;
+      return;
+    }
+    tagOpenAttributeNameAfter(code);
+  };
+  tagOpenBetween = (int code) => {
+    if (code == 47) {
+      t.consume(code);
+      t.next = end;
+      return;
+    }
+    if (code == 58 || code == 95 || asciiAlpha(code)) {
+      t.consume(code);
+      t.next = tagOpenAttributeName;
+      return;
+    }
+    if (markdownLineEnding(code)) {
+      returnState = tagOpenBetween;
+      lineEndingBefore(code);
+      return;
+    }
+    if (markdownSpace(code)) {
+      t.consume(code);
+      t.next = tagOpenBetween;
+      return;
+    }
+    end(code);
+  };
+  func(int)->void tagOpen = noState;
+  tagOpen = (int code) => {
+    if (code == 45 || asciiAlphanumeric(code)) {
+      t.consume(code);
+      t.next = tagOpen;
+      return;
+    }
+    if (code == 47 || code == 62 || markdownLineEndingOrSpace(code)) {
+      tagOpenBetween(code);
+      return;
+    }
+    nok(code);
+  };
+
+  func(int)->void declarationOpen = (int code) => {
+    if (code == 45) {
+      t.consume(code);
+      t.next = commentOpenInside;
+      return;
+    }
+    if (code == 91) {
+      t.consume(code);
+      index = 0;
+      t.next = cdataOpenInside;
+      return;
+    }
+    if (asciiAlpha(code)) {
+      t.consume(code);
+      t.next = declaration;
+      return;
+    }
+    nok(code);
+  };
+  func(int)->void open = (int code) => {
+    if (code == 33) {
+      t.consume(code);
+      t.next = declarationOpen;
+      return;
+    }
+    if (code == 47) {
+      t.consume(code);
+      t.next = tagCloseStart;
+      return;
+    }
+    if (code == 63) {
+      t.consume(code);
+      t.next = instruction;
+      return;
+    }
+    if (asciiAlpha(code)) {
+      t.consume(code);
+      t.next = tagOpen;
+      return;
+    }
+    nok(code);
+  };
+  return (int code) => {
+    t.enter(tHtmlText);
+    t.enter(tHtmlTextData);
+    t.consume(code);
+    t.next = open;
+  };
+});
+
+// --- autolink -------------------------------------------------------------------------------
+
+export Construct autolink = new Construct(C_AUTOLINK, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+  int size = 0;
+  func(int)->void emailAtext = noState;
+  func(int)->void emailAtSignOrDot = noState;
+  func(int)->void emailLabel = noState;
+  func(int)->void emailValue = noState;
+  emailValue = (int code) => {
+    if ((code == 45 || asciiAlphanumeric(code)) && size++ < 63) {
+      func(int)->void nextState = if (code == 45) { emailValue } else { emailLabel };
+      t.consume(code);
+      t.next = nextState;
+      return;
+    }
+    nok(code);
+  };
+  emailLabel = (int code) => {
+    if (code == 46) {
+      t.consume(code);
+      size = 0;
+      t.next = emailAtSignOrDot;
+      return;
+    }
+    if (code == 62) {
+      t.tokens.type[t.exit(tAutolinkProtocol)] = tAutolinkEmail;
+      t.enter(tAutolinkMarker);
+      t.consume(code);
+      t.exit(tAutolinkMarker);
+      t.exit(tAutolink);
+      t.next = ok;
+      return;
+    }
+    emailValue(code);
+  };
+  emailAtSignOrDot = (int code) => {
+    if (asciiAlphanumeric(code)) {
+      emailLabel(code);
+    } else {
+      nok(code);
+    }
+  };
+  emailAtext = (int code) => {
+    if (code == 64) {
+      t.consume(code);
+      t.next = emailAtSignOrDot;
+      return;
+    }
+    if (asciiAtext(code)) {
+      t.consume(code);
+      t.next = emailAtext;
+      return;
+    }
+    nok(code);
+  };
+  func(int)->void urlInside = noState;
+  urlInside = (int code) => {
+    if (code == 62) {
+      t.exit(tAutolinkProtocol);
+      t.enter(tAutolinkMarker);
+      t.consume(code);
+      t.exit(tAutolinkMarker);
+      t.exit(tAutolink);
+      t.next = ok;
+      return;
+    }
+    if (code == EOF || code == SPACE || code == 60 || asciiControl(code)) {
+      nok(code);
+      return;
+    }
+    t.consume(code);
+    t.next = urlInside;
+  };
+  func(int)->void schemeInsideOrEmailAtext = noState;
+  schemeInsideOrEmailAtext = (int code) => {
+    if (code == 58) {
+      t.consume(code);
+      size = 0;
+      t.next = urlInside;
+      return;
+    }
+    if ((code == 43 || code == 45 || code == 46 || asciiAlphanumeric(code)) && size++ < 32) {
+      t.consume(code);
+      t.next = schemeInsideOrEmailAtext;
+      return;
+    }
+    size = 0;
+    emailAtext(code);
+  };
+  func(int)->void schemeOrEmailAtext = (int code) => {
+    if (code == 43 || code == 45 || code == 46 || asciiAlphanumeric(code)) {
+      size = 1;
+      schemeInsideOrEmailAtext(code);
+      return;
+    }
+    emailAtext(code);
+  };
+  func(int)->void open = (int code) => {
+    if (asciiAlpha(code)) {
+      t.consume(code);
+      t.next = schemeOrEmailAtext;
+      return;
+    }
+    if (code == 64) {
+      nok(code);
+      return;
+    }
+    emailAtext(code);
+  };
+  return (int code) => {
+    t.enter(tAutolink);
+    t.enter(tAutolinkMarker);
+    t.consume(code);
+    t.exit(tAutolinkMarker);
+    t.enter(tAutolinkProtocol);
+    t.next = open;
+  };
+});

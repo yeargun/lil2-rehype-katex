@@ -1,0 +1,337 @@
+// micromark-extension-math 3.1.0: math (flow, `$$` fences) and math (text, `$`).
+
+import { EOF, SPACE, TAB_SIZE, markdownLineEnding } from "../micromark/codes.lil";
+import { tCharacterEscape, tChunkString, tLineEnding, tLinePrefix, tSpace, tWhitespace } from "../micromark/types.lil";
+import { CT_STRING, C_CODE_INDENTED, C_NONE, Construct, Tokenizer, eventToken, noState, serializeToken, splice } from "../micromark/tokenizer.lil";
+import { factorySpace } from "../micromark/factories.lil";
+import { HOOK_FLOW, HOOK_TEXT, SyntaxExtension } from "../micromark/parse.lil";
+import { C_MATH_FLOW, C_MATH_TEXT, tMathFlow, tMathFlowFence, tMathFlowFenceMeta, tMathFlowFenceSequence, tMathFlowValue, tMathText, tMathTextData, tMathTextPadding, tMathTextSequence } from "./ids.lil";
+
+const int DOLLAR = 36;
+
+int typeAt(Tokenizer t, int[] events, int index) {
+  return t.tokens.type[eventToken(events[index])];
+}
+
+// --- math (flow) ----------------------------------------------------------------------------
+
+// Unlike micromark's code fences, the end of the document continues the math.
+Construct nonLazyContinuation = makeNonLazyContinuation();
+
+Construct makeNonLazyContinuation() {
+  Construct c = new Construct(C_NONE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    func(int)->void lineStart = (int code) => {
+      if (t.parser.isLazy(t.line)) {
+        nok(code);
+      } else {
+        ok(code);
+      }
+    };
+    return (int code) => {
+      if (code == EOF) {
+        ok(code);
+        return;
+      }
+      t.enter(tLineEnding);
+      t.consume(code);
+      t.exit(tLineEnding);
+      t.next = lineStart;
+    };
+  });
+  c.partial = true;
+  return c;
+}
+
+export Construct mathFlow = makeMathFlow();
+
+Construct makeMathFlow() {
+  Construct c = new Construct(C_MATH_FLOW, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    int initialSize = 0;
+    if (t.events.length > 0) {
+      int tail = eventToken(t.events[t.events.length - 1]);
+      if (t.tokens.type[tail] == tLinePrefix) {
+        initialSize = serializeToken(t.parser, tail, true).length;
+      }
+    }
+    int sizeOpen = 0;
+
+    Construct closingFence = new Construct(C_NONE, (Tokenizer ct, bool closeInterrupt, func(int)->void closeOk, func(int)->void closeNok) => {
+      int size = 0;
+      func(int)->void afterSequenceClose = (int code) => {
+        if (code == EOF || markdownLineEnding(code)) {
+          ct.exit(tMathFlowFence);
+          closeOk(code);
+          return;
+        }
+        closeNok(code);
+      };
+      func(int)->void sequenceClose = noState;
+      sequenceClose = (int code) => {
+        if (code == DOLLAR) {
+          size++;
+          ct.consume(code);
+          ct.next = sequenceClose;
+          return;
+        }
+        if (size < sizeOpen) {
+          closeNok(code);
+          return;
+        }
+        ct.exit(tMathFlowFenceSequence);
+        factorySpace(ct, afterSequenceClose, tWhitespace, 0)(code);
+      };
+      func(int)->void beforeSequenceClose = (int code) => {
+        ct.enter(tMathFlowFence);
+        ct.enter(tMathFlowFenceSequence);
+        sequenceClose(code);
+      };
+      return factorySpace(ct, beforeSequenceClose, tLinePrefix, if (t.parser.constructs.disabled[C_CODE_INDENTED]) { 0 } else { TAB_SIZE });
+    });
+    closingFence.partial = true;
+
+    func(int)->void beforeNonLazyContinuation = noState;
+    func(int)->void beforeContentChunk = noState;
+    func(int)->void contentChunk = noState;
+    func(int)->void meta = noState;
+
+    func(int)->void after = (int code) => {
+      t.exit(tMathFlow);
+      ok(code);
+    };
+
+    func(int)->void metaAfter = (int code) => {
+      t.exit(tMathFlowFence);
+      if (interrupt || t.interrupt) {
+        ok(code);
+        return;
+      }
+      t.attemptOne(nonLazyContinuation, beforeNonLazyContinuation, after)(code);
+    };
+
+    func(int)->void metaBefore = (int code) => {
+      if (code == EOF || markdownLineEnding(code)) {
+        metaAfter(code);
+        return;
+      }
+      t.enter(tMathFlowFenceMeta);
+      int chunk = t.enter(tChunkString);
+      t.tokens.contentType[chunk] = CT_STRING;
+      meta(code);
+    };
+
+    meta = (int code) => {
+      if (code == EOF || markdownLineEnding(code)) {
+        t.exit(tChunkString);
+        t.exit(tMathFlowFenceMeta);
+        metaAfter(code);
+        return;
+      }
+      if (code == DOLLAR) {
+        nok(code);
+        return;
+      }
+      t.consume(code);
+      t.next = meta;
+    };
+
+    func(int)->void sequenceOpen = noState;
+    sequenceOpen = (int code) => {
+      if (code == DOLLAR) {
+        t.consume(code);
+        sizeOpen++;
+        t.next = sequenceOpen;
+        return;
+      }
+      if (sizeOpen < 2) {
+        nok(code);
+        return;
+      }
+      t.exit(tMathFlowFenceSequence);
+      factorySpace(t, metaBefore, tWhitespace, 0)(code);
+    };
+
+    func(int)->void contentStart = (int code) => {
+      if (initialSize > 0) {
+        factorySpace(t, beforeContentChunk, tLinePrefix, initialSize + 1)(code);
+      } else {
+        beforeContentChunk(code);
+      }
+    };
+
+    beforeNonLazyContinuation = (int code) => {
+      t.attemptOne(closingFence, after, contentStart)(code);
+    };
+
+    beforeContentChunk = (int code) => {
+      if (code == EOF) {
+        after(code);
+        return;
+      }
+      if (markdownLineEnding(code)) {
+        t.attemptOne(nonLazyContinuation, beforeNonLazyContinuation, after)(code);
+        return;
+      }
+      t.enter(tMathFlowValue);
+      contentChunk(code);
+    };
+
+    contentChunk = (int code) => {
+      if (code == EOF || markdownLineEnding(code)) {
+        t.exit(tMathFlowValue);
+        beforeContentChunk(code);
+        return;
+      }
+      t.consume(code);
+      t.next = contentChunk;
+    };
+
+    return (int code) => {
+      t.enter(tMathFlow);
+      t.enter(tMathFlowFence);
+      t.enter(tMathFlowFenceSequence);
+      sequenceOpen(code);
+    };
+  });
+  c.concrete = true;
+  return c;
+}
+
+// --- math (text) ----------------------------------------------------------------------------
+
+int[] resolveMathText(int[] events, Tokenizer t) {
+  int tailExitIndex = events.length - 4;
+  int headEnterIndex = 3;
+  int head = typeAt(t, events, headEnterIndex);
+  int tail = typeAt(t, events, tailExitIndex);
+  if ((head == tLineEnding || head == tSpace) && (tail == tLineEnding || tail == tSpace)) {
+    int index = headEnterIndex;
+    while (++index < tailExitIndex) {
+      if (typeAt(t, events, index) == tMathTextData) {
+        t.tokens.type[eventToken(events[tailExitIndex])] = tMathTextPadding;
+        t.tokens.type[eventToken(events[headEnterIndex])] = tMathTextPadding;
+        headEnterIndex += 2;
+        tailExitIndex -= 2;
+        break;
+      }
+    }
+  }
+  int index = headEnterIndex - 1;
+  int enter = -1;
+  tailExitIndex++;
+  while (++index <= tailExitIndex) {
+    if (enter < 0) {
+      if (index != tailExitIndex && typeAt(t, events, index) != tLineEnding) {
+        enter = index;
+      }
+    } else if (index == tailExitIndex || typeAt(t, events, index) == tLineEnding) {
+      int token = eventToken(events[enter]);
+      t.tokens.type[token] = tMathTextData;
+      if (index != enter + 2) {
+        t.tokens.endAtEndOf(token, eventToken(events[index - 1]));
+        splice(events, enter + 2, index - enter - 2, []);
+        tailExitIndex -= index - enter - 2;
+        index = enter + 2;
+      }
+      enter = -1;
+    }
+  }
+  return events;
+}
+
+// `mathText({singleDollarTextMath})`.
+export Construct mathText(bool single) {
+  Construct c = new Construct(C_MATH_TEXT, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    int sizeOpen = 0;
+    int size = 0;
+    int token = -1;
+    func(int)->void between = noState;
+    func(int)->void data = noState;
+    func(int)->void sequenceOpen = noState;
+    func(int)->void sequenceClose = noState;
+    sequenceOpen = (int code) => {
+      if (code == DOLLAR) {
+        t.consume(code);
+        sizeOpen++;
+        t.next = sequenceOpen;
+        return;
+      }
+      if (sizeOpen < 2 && !single) {
+        nok(code);
+        return;
+      }
+      t.exit(tMathTextSequence);
+      between(code);
+    };
+    between = (int code) => {
+      if (code == EOF) {
+        nok(code);
+        return;
+      }
+      if (code == DOLLAR) {
+        token = t.enter(tMathTextSequence);
+        size = 0;
+        sequenceClose(code);
+        return;
+      }
+      if (code == SPACE) {
+        t.enter(tSpace);
+        t.consume(code);
+        t.exit(tSpace);
+        t.next = between;
+        return;
+      }
+      if (markdownLineEnding(code)) {
+        t.enter(tLineEnding);
+        t.consume(code);
+        t.exit(tLineEnding);
+        t.next = between;
+        return;
+      }
+      t.enter(tMathTextData);
+      data(code);
+    };
+    data = (int code) => {
+      if (code == EOF || code == SPACE || code == DOLLAR || markdownLineEnding(code)) {
+        t.exit(tMathTextData);
+        between(code);
+        return;
+      }
+      t.consume(code);
+      t.next = data;
+    };
+    sequenceClose = (int code) => {
+      if (code == DOLLAR) {
+        t.consume(code);
+        size++;
+        t.next = sequenceClose;
+        return;
+      }
+      if (size == sizeOpen) {
+        t.exit(tMathTextSequence);
+        t.exit(tMathText);
+        ok(code);
+        return;
+      }
+      t.tokens.type[token] = tMathTextData;
+      data(code);
+    };
+    return (int code) => {
+      t.enter(tMathText);
+      t.enter(tMathTextSequence);
+      sequenceOpen(code);
+    };
+  });
+  c.hasResolve = true;
+  c.resolve = resolveMathText;
+  c.hasPrevious = true;
+  c.previous = (Tokenizer t, int code) => code != DOLLAR || typeAt(t, t.events, t.events.length - 1) == tCharacterEscape;
+  return c;
+}
+
+// `math(options)`: the syntax extension.
+export SyntaxExtension mathSyntax(bool singleDollarTextMath) {
+  SyntaxExtension e = new SyntaxExtension();
+  e.add(HOOK_FLOW, DOLLAR, [mathFlow]);
+  e.add(HOOK_TEXT, DOLLAR, [mathText(singleDollarTextMath)]);
+  return e;
+}

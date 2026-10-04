@@ -1,0 +1,17 @@
+// remark-math 6.0.0 for the lil2 pipeline, as typed parts that higher layers compile in: the syntax
+// (micromark-extension-math), the mdast handlers and the hast handlers (mdast-util-math).
+
+import { SyntaxExtension } from "../micromark/parse.lil";
+import { FromMarkdown } from "../mdast/from-markdown.lil";
+import { ToHast } from "../hast/to-hast.lil";
+import { mathSyntax as syntax } from "./syntax.lil";
+import { installMathFromMarkdown } from "./mdast-math.lil";
+import { installMathToHast } from "./hast-math.lil";
+
+// `singleDollarTextMath` defaults to true upstream.
+export SyntaxExtension mathSyntax(bool singleDollarTextMath) {
+  return syntax(singleDollarTextMath);
+}
+
+export func(FromMarkdown)->void mathMdast = (FromMarkdown c) => installMathFromMarkdown(c);
+export func(ToHast)->void mathHast = (ToHast state) => installMathToHast(state);

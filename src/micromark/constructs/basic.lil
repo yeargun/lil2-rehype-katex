@@ -1,0 +1,613 @@
+// micromark-core-commonmark: blank-line, line-ending, thematic-break, hard-break-escape,
+// character-escape, character-reference, code-indented, heading-atx, setext-underline, code-text.
+
+import { EOF, SPACE, TAB_SIZE, asciiAlphanumeric, asciiDigit, asciiHexDigit, asciiPunctuation, markdownLineEnding, markdownLineEndingOrSpace, markdownSpace } from "../codes.lil";
+import { tAtxHeading, tSpace, tAtxHeadingSequence, tAtxHeadingText, tCharacterEscape, tCharacterEscapeValue, tCharacterReference, tCharacterReferenceMarker, tCharacterReferenceMarkerHexadecimal, tCharacterReferenceMarkerNumeric, tCharacterReferenceValue, tChunkText, tCodeFlowValue, tCodeIndented, tCodeText, tCodeTextData, tCodeTextPadding, tCodeTextSequence, tContent, tDefinition, tEscapeMarker, tHardBreakEscape, tLineEnding, tLinePrefix, tLineSuffix, tParagraph, tSetextHeading, tSetextHeadingLine, tSetextHeadingLineSequence, tSetextHeadingText, tThematicBreak, tThematicBreakSequence, tWhitespace } from "../types.lil";
+import { CT_TEXT, C_CHARACTER_ESCAPE, C_CHARACTER_REFERENCE, C_CODE_INDENTED, C_CODE_TEXT, C_HARD_BREAK_ESCAPE, C_HEADING_ATX, C_LINE_ENDING, C_NONE, C_SETEXT_UNDERLINE, C_THEMATIC_BREAK, Construct, Tokenizer, enterEvent, eventToken, exitEvent, isEnter, newToken, noState, serializeToken, splice } from "../tokenizer.lil";
+import { factorySpace } from "../factories.lil";
+import { decodeNamed } from "../util.lil";
+
+
+int typeAt(Tokenizer t, int[] events, int index) {
+  return t.tokens.type[eventToken(events[index])];
+}
+
+// --- blank line -----------------------------------------------------------------------------
+
+export Construct blankLine = makeBlankLine();
+
+Construct makeBlankLine() {
+  Construct c = new Construct(C_NONE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    func(int)->void after = (int code) => {
+      if (code == EOF || markdownLineEnding(code)) {
+        ok(code);
+      } else {
+        nok(code);
+      }
+    };
+    return (int code) => {
+      if (markdownSpace(code)) {
+        factorySpace(t, after, tLinePrefix, 0)(code);
+      } else {
+        after(code);
+      }
+    };
+  });
+  c.partial = true;
+  return c;
+}
+
+// --- line ending (text) ---------------------------------------------------------------------
+
+export Construct lineEnding = new Construct(C_LINE_ENDING, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => (int code) => {
+  t.enter(tLineEnding);
+  t.consume(code);
+  t.exit(tLineEnding);
+  t.next = factorySpace(t, ok, tLinePrefix, 0);
+});
+
+// --- thematic break -------------------------------------------------------------------------
+
+export Construct thematicBreak = new Construct(C_THEMATIC_BREAK, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+  int size = 0;
+  int marker = 0;
+  func(int)->void atBreak = noState;
+  func(int)->void sequence = noState;
+  sequence = (int code) => {
+    if (code == marker) {
+      t.consume(code);
+      size++;
+      t.next = sequence;
+      return;
+    }
+    t.exit(tThematicBreakSequence);
+    if (markdownSpace(code)) {
+      factorySpace(t, atBreak, tWhitespace, 0)(code);
+    } else {
+      atBreak(code);
+    }
+  };
+  atBreak = (int code) => {
+    if (code == marker) {
+      t.enter(tThematicBreakSequence);
+      sequence(code);
+      return;
+    }
+    if (size >= 3 && (code == EOF || markdownLineEnding(code))) {
+      t.exit(tThematicBreak);
+      ok(code);
+      return;
+    }
+    nok(code);
+  };
+  return (int code) => {
+    t.enter(tThematicBreak);
+    marker = code;
+    atBreak(code);
+  };
+});
+
+// --- hard break (escape) --------------------------------------------------------------------
+
+export Construct hardBreakEscape = new Construct(C_HARD_BREAK_ESCAPE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+  func(int)->void after = (int code) => {
+    if (markdownLineEnding(code)) {
+      t.exit(tHardBreakEscape);
+      ok(code);
+      return;
+    }
+    nok(code);
+  };
+  return (int code) => {
+    t.enter(tHardBreakEscape);
+    t.consume(code);
+    t.next = after;
+  };
+});
+
+// --- character escape -----------------------------------------------------------------------
+
+export Construct characterEscape = new Construct(C_CHARACTER_ESCAPE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+  func(int)->void inside = (int code) => {
+    if (asciiPunctuation(code)) {
+      t.enter(tCharacterEscapeValue);
+      t.consume(code);
+      t.exit(tCharacterEscapeValue);
+      t.exit(tCharacterEscape);
+      t.next = ok;
+      return;
+    }
+    nok(code);
+  };
+  return (int code) => {
+    t.enter(tCharacterEscape);
+    t.enter(tEscapeMarker);
+    t.consume(code);
+    t.exit(tEscapeMarker);
+    t.next = inside;
+  };
+});
+
+// --- character reference --------------------------------------------------------------------
+
+// `test`: 0 alphanumeric (named), 1 hex digit, 2 decimal digit.
+bool referenceDigit(int test, int code) {
+  if (test == 0) {
+    return asciiAlphanumeric(code);
+  }
+  if (test == 1) {
+    return asciiHexDigit(code);
+  }
+  return asciiDigit(code);
+}
+
+export Construct characterReference = new Construct(C_CHARACTER_REFERENCE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+  int size = 0;
+  int max = 0;
+  int test = 0;
+  func(int)->void value = noState;
+  value = (int code) => {
+    if (code == 59 && size != 0) {
+      int token = t.exit(tCharacterReferenceValue);
+      if (test == 0 && decodeNamed(t.sliceSerialize(token, false)) == null) {
+        nok(code);
+        return;
+      }
+      t.enter(tCharacterReferenceMarker);
+      t.consume(code);
+      t.exit(tCharacterReferenceMarker);
+      t.exit(tCharacterReference);
+      t.next = ok;
+      return;
+    }
+    if (referenceDigit(test, code) && size++ < max) {
+      t.consume(code);
+      t.next = value;
+      return;
+    }
+    nok(code);
+  };
+  func(int)->void numeric = (int code) => {
+    if (code == 88 || code == 120) {
+      t.enter(tCharacterReferenceMarkerHexadecimal);
+      t.consume(code);
+      t.exit(tCharacterReferenceMarkerHexadecimal);
+      t.enter(tCharacterReferenceValue);
+      max = 6;
+      test = 1;
+      t.next = value;
+      return;
+    }
+    t.enter(tCharacterReferenceValue);
+    max = 7;
+    test = 2;
+    value(code);
+  };
+  func(int)->void open = (int code) => {
+    if (code == 35) {
+      t.enter(tCharacterReferenceMarkerNumeric);
+      t.consume(code);
+      t.exit(tCharacterReferenceMarkerNumeric);
+      t.next = numeric;
+      return;
+    }
+    t.enter(tCharacterReferenceValue);
+    max = 31;
+    test = 0;
+    value(code);
+  };
+  return (int code) => {
+    t.enter(tCharacterReference);
+    t.enter(tCharacterReferenceMarker);
+    t.consume(code);
+    t.exit(tCharacterReferenceMarker);
+    t.next = open;
+  };
+});
+
+// --- indented code --------------------------------------------------------------------------
+
+// `tail && tail.type === linePrefix && sliceSerialize(tail, true).length >= tabSize`.
+bool indentedEnough(Tokenizer t) {
+  if (t.events.length == 0) {
+    return false;
+  }
+  int tail = eventToken(t.events[t.events.length - 1]);
+  return t.tokens.type[tail] == tLinePrefix && serializeToken(t.parser, tail, true).length >= TAB_SIZE;
+}
+
+Construct codeIndentedFurtherStart = makeFurtherStart();
+
+Construct makeFurtherStart() {
+  Construct c = new Construct(C_NONE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    func(int)->void furtherStart = noState;
+    func(int)->void afterPrefix = (int code) => {
+      if (indentedEnough(t)) {
+        ok(code);
+      } else if (markdownLineEnding(code)) {
+        furtherStart(code);
+      } else {
+        nok(code);
+      }
+    };
+    furtherStart = (int code) => {
+      if (t.parser.isLazy(t.line)) {
+        nok(code);
+        return;
+      }
+      if (markdownLineEnding(code)) {
+        t.enter(tLineEnding);
+        t.consume(code);
+        t.exit(tLineEnding);
+        t.next = furtherStart;
+        return;
+      }
+      factorySpace(t, afterPrefix, tLinePrefix, TAB_SIZE + 1)(code);
+    };
+    return furtherStart;
+  });
+  c.partial = true;
+  return c;
+}
+
+export Construct codeIndented = new Construct(C_CODE_INDENTED, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+  func(int)->void atBreak = noState;
+  func(int)->void inside = noState;
+  func(int)->void after = (int code) => {
+    t.exit(tCodeIndented);
+    ok(code);
+  };
+  inside = (int code) => {
+    if (code == EOF || markdownLineEnding(code)) {
+      t.exit(tCodeFlowValue);
+      atBreak(code);
+      return;
+    }
+    t.consume(code);
+    t.next = inside;
+  };
+  atBreak = (int code) => {
+    if (code == EOF) {
+      after(code);
+      return;
+    }
+    if (markdownLineEnding(code)) {
+      t.attemptOne(codeIndentedFurtherStart, atBreak, after)(code);
+      return;
+    }
+    t.enter(tCodeFlowValue);
+    inside(code);
+  };
+  func(int)->void afterPrefix = (int code) => {
+    if (indentedEnough(t)) {
+      atBreak(code);
+    } else {
+      nok(code);
+    }
+  };
+  return (int code) => {
+    t.enter(tCodeIndented);
+    factorySpace(t, afterPrefix, tLinePrefix, TAB_SIZE + 1)(code);
+  };
+});
+
+// --- ATX heading ----------------------------------------------------------------------------
+
+int[] resolveHeadingAtx(int[] events, Tokenizer t) {
+  int contentEnd = events.length - 2;
+  int contentStart = 3;
+  if (typeAt(t, events, contentStart) == tWhitespace) {
+    contentStart += 2;
+  }
+  if (contentEnd - 2 > contentStart && typeAt(t, events, contentEnd) == tWhitespace) {
+    contentEnd -= 2;
+  }
+  if (typeAt(t, events, contentEnd) == tAtxHeadingSequence &&
+      (contentStart == contentEnd - 1 || (contentEnd - 4 > contentStart && typeAt(t, events, contentEnd - 2) == tWhitespace))) {
+    contentEnd -= if (contentStart + 1 == contentEnd) { 2 } else { 4 };
+  }
+  if (contentEnd > contentStart) {
+    int first = eventToken(events[contentStart]);
+    int last = eventToken(events[contentEnd]);
+    int content = newToken(t, tAtxHeadingText);
+    t.tokens.startAtStartOf(content, first);
+    t.tokens.endAtEndOf(content, last);
+    int text = newToken(t, tChunkText);
+    t.tokens.startAtStartOf(text, first);
+    t.tokens.endAtEndOf(text, last);
+    t.tokens.contentType[text] = CT_TEXT;
+    splice(events, contentStart, contentEnd - contentStart + 1, [enterEvent(content), enterEvent(text), exitEvent(text), exitEvent(content)]);
+  }
+  return events;
+}
+
+export Construct headingAtx = makeHeadingAtx();
+
+Construct makeHeadingAtx() {
+  Construct c = new Construct(C_HEADING_ATX, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    int size = 0;
+    func(int)->void atBreak = noState;
+    func(int)->void sequenceOpen = noState;
+    func(int)->void sequenceFurther = noState;
+    func(int)->void data = noState;
+    sequenceOpen = (int code) => {
+      if (code == 35 && size++ < 6) {
+        t.consume(code);
+        t.next = sequenceOpen;
+        return;
+      }
+      if (code == EOF || markdownLineEndingOrSpace(code)) {
+        t.exit(tAtxHeadingSequence);
+        atBreak(code);
+        return;
+      }
+      nok(code);
+    };
+    atBreak = (int code) => {
+      if (code == 35) {
+        t.enter(tAtxHeadingSequence);
+        sequenceFurther(code);
+        return;
+      }
+      if (code == EOF || markdownLineEnding(code)) {
+        t.exit(tAtxHeading);
+        ok(code);
+        return;
+      }
+      if (markdownSpace(code)) {
+        factorySpace(t, atBreak, tWhitespace, 0)(code);
+        return;
+      }
+      t.enter(tAtxHeadingText);
+      data(code);
+    };
+    sequenceFurther = (int code) => {
+      if (code == 35) {
+        t.consume(code);
+        t.next = sequenceFurther;
+        return;
+      }
+      t.exit(tAtxHeadingSequence);
+      atBreak(code);
+    };
+    data = (int code) => {
+      if (code == EOF || code == 35 || markdownLineEndingOrSpace(code)) {
+        t.exit(tAtxHeadingText);
+        atBreak(code);
+        return;
+      }
+      t.consume(code);
+      t.next = data;
+    };
+    return (int code) => {
+      t.enter(tAtxHeading);
+      t.enter(tAtxHeadingSequence);
+      sequenceOpen(code);
+    };
+  });
+  c.hasResolve = true;
+  c.resolve = resolveHeadingAtx;
+  return c;
+}
+
+// --- setext underline -----------------------------------------------------------------------
+
+int[] resolveToSetextUnderline(int[] events, Tokenizer t) {
+  int index = events.length;
+  int content = -1;
+  int text = -1;
+  int definition = -1;
+  while (index-- > 0) {
+    if (isEnter(events[index])) {
+      if (typeAt(t, events, index) == tContent) {
+        content = index;
+        break;
+      }
+      if (typeAt(t, events, index) == tParagraph) {
+        text = index;
+      }
+    } else {
+      if (typeAt(t, events, index) == tContent) {
+        splice(events, index, 1, []);
+      }
+      if (definition < 0 && typeAt(t, events, index) == tDefinition) {
+        definition = index;
+      }
+    }
+  }
+  int contentToken = eventToken(events[content]);
+  int heading = newToken(t, tSetextHeading);
+  t.tokens.startAtStartOf(heading, contentToken);
+  t.tokens.endAtEndOf(heading, eventToken(events[events.length - 1]));
+  t.tokens.type[eventToken(events[text])] = tSetextHeadingText;
+  if (definition > 0) {
+    splice(events, text, 0, [enterEvent(heading)]);
+    splice(events, definition + 1, 0, [exitEvent(contentToken)]);
+    t.tokens.endAtEndOf(contentToken, eventToken(events[definition]));
+  } else {
+    events[content] = enterEvent(heading);
+  }
+  events.push(exitEvent(heading));
+  return events;
+}
+
+export Construct setextUnderline = makeSetextUnderline();
+
+Construct makeSetextUnderline() {
+  Construct c = new Construct(C_SETEXT_UNDERLINE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    int marker = 0;
+    func(int)->void after = (int code) => {
+      if (code == EOF || markdownLineEnding(code)) {
+        t.exit(tSetextHeadingLine);
+        ok(code);
+        return;
+      }
+      nok(code);
+    };
+    func(int)->void inside = noState;
+    inside = (int code) => {
+      if (code == marker) {
+        t.consume(code);
+        t.next = inside;
+        return;
+      }
+      t.exit(tSetextHeadingLineSequence);
+      if (markdownSpace(code)) {
+        factorySpace(t, after, tLineSuffix, 0)(code);
+      } else {
+        after(code);
+      }
+    };
+    return (int code) => {
+      int index = t.events.length;
+      bool paragraph = false;
+      while (index-- > 0) {
+        int type = typeAt(t, t.events, index);
+        if (type != tLineEnding && type != tLinePrefix && type != tContent) {
+          paragraph = type == tParagraph;
+          break;
+        }
+      }
+      if (!t.parser.isLazy(t.line) && (interrupt || t.interrupt || paragraph)) {
+        t.enter(tSetextHeadingLine);
+        marker = code;
+        t.enter(tSetextHeadingLineSequence);
+        inside(code);
+        return;
+      }
+      nok(code);
+    };
+  });
+  c.hasResolveTo = true;
+  c.resolveTo = resolveToSetextUnderline;
+  return c;
+}
+
+// --- code (text) ----------------------------------------------------------------------------
+
+int[] resolveCodeText(int[] events, Tokenizer t) {
+  int tailExitIndex = events.length - 4;
+  int headEnterIndex = 3;
+  int head = typeAt(t, events, headEnterIndex);
+  int tail = typeAt(t, events, tailExitIndex);
+  if ((head == tLineEnding || head == tSpace) && (tail == tLineEnding || tail == tSpace)) {
+    int index = headEnterIndex;
+    while (++index < tailExitIndex) {
+      if (typeAt(t, events, index) == tCodeTextData) {
+        t.tokens.type[eventToken(events[headEnterIndex])] = tCodeTextPadding;
+        t.tokens.type[eventToken(events[tailExitIndex])] = tCodeTextPadding;
+        headEnterIndex += 2;
+        tailExitIndex -= 2;
+        break;
+      }
+    }
+  }
+  int index = headEnterIndex - 1;
+  int enter = -1;
+  tailExitIndex++;
+  while (++index <= tailExitIndex) {
+    if (enter < 0) {
+      if (index != tailExitIndex && typeAt(t, events, index) != tLineEnding) {
+        enter = index;
+      }
+    } else if (index == tailExitIndex || typeAt(t, events, index) == tLineEnding) {
+      int token = eventToken(events[enter]);
+      t.tokens.type[token] = tCodeTextData;
+      if (index != enter + 2) {
+        t.tokens.endAtEndOf(token, eventToken(events[index - 1]));
+        splice(events, enter + 2, index - enter - 2, []);
+        tailExitIndex -= index - enter - 2;
+        index = enter + 2;
+      }
+      enter = -1;
+    }
+  }
+  return events;
+}
+
+export Construct codeText = makeCodeText();
+
+Construct makeCodeText() {
+  Construct c = new Construct(C_CODE_TEXT, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    int sizeOpen = 0;
+    int size = 0;
+    int token = -1;
+    func(int)->void between = noState;
+    func(int)->void data = noState;
+    func(int)->void sequenceOpen = noState;
+    func(int)->void sequenceClose = noState;
+    sequenceOpen = (int code) => {
+      if (code == 96) {
+        t.consume(code);
+        sizeOpen++;
+        t.next = sequenceOpen;
+        return;
+      }
+      t.exit(tCodeTextSequence);
+      between(code);
+    };
+    between = (int code) => {
+      if (code == EOF) {
+        nok(code);
+        return;
+      }
+      if (code == SPACE) {
+        t.enter(tSpace);
+        t.consume(code);
+        t.exit(tSpace);
+        t.next = between;
+        return;
+      }
+      if (code == 96) {
+        token = t.enter(tCodeTextSequence);
+        size = 0;
+        sequenceClose(code);
+        return;
+      }
+      if (markdownLineEnding(code)) {
+        t.enter(tLineEnding);
+        t.consume(code);
+        t.exit(tLineEnding);
+        t.next = between;
+        return;
+      }
+      t.enter(tCodeTextData);
+      data(code);
+    };
+    data = (int code) => {
+      if (code == EOF || code == SPACE || code == 96 || markdownLineEnding(code)) {
+        t.exit(tCodeTextData);
+        between(code);
+        return;
+      }
+      t.consume(code);
+      t.next = data;
+    };
+    sequenceClose = (int code) => {
+      if (code == 96) {
+        t.consume(code);
+        size++;
+        t.next = sequenceClose;
+        return;
+      }
+      if (size == sizeOpen) {
+        t.exit(tCodeTextSequence);
+        t.exit(tCodeText);
+        ok(code);
+        return;
+      }
+      t.tokens.type[token] = tCodeTextData;
+      data(code);
+    };
+    return (int code) => {
+      t.enter(tCodeText);
+      t.enter(tCodeTextSequence);
+      sequenceOpen(code);
+    };
+  });
+  c.hasResolve = true;
+  c.resolve = resolveCodeText;
+  c.hasPrevious = true;
+  c.previous = (Tokenizer t, int code) => code != 96 || typeAt(t, t.events, t.events.length - 1) == tCharacterEscape;
+  return c;
+}

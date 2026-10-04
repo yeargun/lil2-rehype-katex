@@ -1,0 +1,159 @@
+// micromark/lib/parse.js and constructs.js: the CommonMark syntax plus extensions, combined once.
+
+import { CR, CRLF, HT, LF, SPACE, VS } from "./codes.lil";
+import { preprocess } from "./preprocess.lil";
+import { Construct, ConstructMap, Constructs, Parser, Tokenizer } from "./tokenizer.lil";
+import { contentInit, document, flow, stringInit, textInit, textResolveConstruct } from "./initialize.lil";
+import { subtokenize } from "./subtokenize.lil";
+import { characterEscape, characterReference, codeIndented, codeText, hardBreakEscape, headingAtx, lineEnding, setextUnderline, thematicBreak } from "./constructs/basic.lil";
+import { codeFenced, definition } from "./constructs/flow.lil";
+import { blockQuote, list } from "./constructs/containers.lil";
+import { htmlFlow } from "./constructs/html-flow.lil";
+import { autolink, htmlText } from "./constructs/inline.lil";
+import { attention } from "./constructs/attention.lil";
+import { labelEnd, labelStartImage, labelStartLink } from "./constructs/label.lil";
+
+// A syntax extension: constructs per hook and code. `code` -2147483648 means any code (`null`).
+export class SyntaxExtension {
+  int[] hooks;
+  int[] codes;
+  (Construct[])[] lists;
+  Construct[] insideSpan;
+  int[] attentionMarkers;
+  // Construct ids to turn off (upstream `disable: {null: [...names]}`).
+  int[] disable;
+  bool hiddenFootnoteSupport;
+
+  init() {
+    this.hooks = [];
+    this.codes = [];
+    this.lists = [];
+    this.insideSpan = [];
+    this.attentionMarkers = [];
+    this.disable = [];
+    this.hiddenFootnoteSupport = false;
+  }
+
+  SyntaxExtension add(int hook, int code, Construct[] list) {
+    this.hooks.push(hook);
+    this.codes.push(code);
+    this.lists.push(list);
+    return this;
+  }
+}
+
+export const int HOOK_DOCUMENT = 0;
+export const int HOOK_CONTENT_INITIAL = 1;
+export const int HOOK_FLOW_INITIAL = 2;
+export const int HOOK_FLOW = 3;
+export const int HOOK_STRING = 4;
+export const int HOOK_TEXT = 5;
+export const int ANY_CODE = -2147483648;
+
+ConstructMap hookMap(Constructs all, int hook) {
+  if (hook == HOOK_DOCUMENT) {
+    return all.document;
+  }
+  if (hook == HOOK_CONTENT_INITIAL) {
+    return all.contentInitial;
+  }
+  if (hook == HOOK_FLOW_INITIAL) {
+    return all.flowInitial;
+  }
+  if (hook == HOOK_FLOW) {
+    return all.flow;
+  }
+  if (hook == HOOK_STRING) {
+    return all.string;
+  }
+  return all.text;
+}
+
+// micromark-util-combine-extensions.
+export void combine(Constructs all, SyntaxExtension extension) {
+  for (int index = 0; index < extension.hooks.length; index++) {
+    ConstructMap map = hookMap(all, extension.hooks[index]);
+    if (extension.codes[index] == ANY_CODE) {
+      map.addAny(extension.lists[index]);
+    } else {
+      map.add(extension.codes[index], extension.lists[index]);
+    }
+  }
+  if (extension.insideSpan.length > 0) {
+    all.insideSpan = [...extension.insideSpan.filter((Construct c) => !c.addAfter), ...all.insideSpan, ...extension.insideSpan.filter((Construct c) => c.addAfter)];
+  }
+  for (int marker of extension.attentionMarkers) {
+    all.attentionMarkers.push(marker);
+  }
+  for (int id of extension.disable) {
+    all.disabled[id] = true;
+  }
+  if (extension.hiddenFootnoteSupport) {
+    all.hiddenFootnoteSupport = true;
+  }
+}
+
+export SyntaxExtension commonmark = makeCommonmark();
+
+SyntaxExtension makeCommonmark() {
+  SyntaxExtension e = new SyntaxExtension();
+  for (int code of [42, 43, 45, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57]) {
+    e.add(HOOK_DOCUMENT, code, [list]);
+  }
+  e.add(HOOK_DOCUMENT, 62, [blockQuote]);
+  e.add(HOOK_CONTENT_INITIAL, 91, [definition]);
+  e.add(HOOK_FLOW_INITIAL, HT, [codeIndented]);
+  e.add(HOOK_FLOW_INITIAL, VS, [codeIndented]);
+  e.add(HOOK_FLOW_INITIAL, SPACE, [codeIndented]);
+  e.add(HOOK_FLOW, 35, [headingAtx]);
+  e.add(HOOK_FLOW, 42, [thematicBreak]);
+  e.add(HOOK_FLOW, 45, [setextUnderline, thematicBreak]);
+  e.add(HOOK_FLOW, 60, [htmlFlow]);
+  e.add(HOOK_FLOW, 61, [setextUnderline]);
+  e.add(HOOK_FLOW, 95, [thematicBreak]);
+  e.add(HOOK_FLOW, 96, [codeFenced]);
+  e.add(HOOK_FLOW, 126, [codeFenced]);
+  e.add(HOOK_STRING, 38, [characterReference]);
+  e.add(HOOK_STRING, 92, [characterEscape]);
+  e.add(HOOK_TEXT, CR, [lineEnding]);
+  e.add(HOOK_TEXT, LF, [lineEnding]);
+  e.add(HOOK_TEXT, CRLF, [lineEnding]);
+  e.add(HOOK_TEXT, 33, [labelStartImage]);
+  e.add(HOOK_TEXT, 38, [characterReference]);
+  e.add(HOOK_TEXT, 42, [attention]);
+  e.add(HOOK_TEXT, 60, [autolink, htmlText]);
+  e.add(HOOK_TEXT, 91, [labelStartLink]);
+  e.add(HOOK_TEXT, 92, [hardBreakEscape, characterEscape]);
+  e.add(HOOK_TEXT, 93, [labelEnd]);
+  e.add(HOOK_TEXT, 95, [attention]);
+  e.add(HOOK_TEXT, 96, [codeText]);
+  e.insideSpan = [attention, textResolveConstruct];
+  e.attentionMarkers = [42, 95];
+  return e;
+}
+
+export Constructs combineAll(SyntaxExtension[] extensions) {
+  Constructs all = new Constructs();
+  combine(all, commonmark);
+  for (SyntaxExtension extension of extensions) {
+    combine(all, extension);
+  }
+  return all;
+}
+
+export Parser createParser(Constructs constructs) {
+  return new Parser(constructs, document, flow, contentInit, stringInit, textInit);
+}
+
+// Tokenizes a whole document and expands every chunk: micromark's
+// `postprocess(parse().document().write(preprocess()(value, undefined, true)))`.
+export int[] parseDocument(Parser parser, string value) {
+  parser.setSource(if (value.length > 0 && value.codeUnitAt(0) == 65279) { value.slice(1) } else { value });
+  Tokenizer root = parser.create(0, 0);
+  root.write(preprocess(value));
+  int[] events = root.events;
+  while (!subtokenize(events, parser)) {
+    // Expand until stable.
+  }
+  return events;
+}

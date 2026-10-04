@@ -1,0 +1,229 @@
+// micromark-core-commonmark: block-quote, list.
+
+import { EOF, TAB_SIZE, asciiDigit, markdownSpace } from "../codes.lil";
+import { tBlockQuote, tBlockQuoteMarker, tBlockQuotePrefix, tBlockQuotePrefixWhitespace, tLinePrefix, tListItemIndent, tListItemMarker, tListItemPrefix, tListItemPrefixWhitespace, tListItemValue, tListOrdered, tListUnordered } from "../types.lil";
+import { C_BLOCK_QUOTE, C_CODE_INDENTED, C_LIST, C_NONE, F_CONTAINER, Construct, Tokenizer, eventToken, noState, serializeToken } from "../tokenizer.lil";
+import { factorySpace } from "../factories.lil";
+import { blankLine, thematicBreak } from "./basic.lil";
+
+int codeIndentedMax(Tokenizer t, int size) {
+  return if (t.parser.constructs.disabled[C_CODE_INDENTED]) { 0 } else { size };
+}
+
+// The last event's token if it has `type`, else -1.
+int tailOfType(Tokenizer t, int type) {
+  if (t.events.length == 0) {
+    return -1;
+  }
+  int tail = eventToken(t.events[t.events.length - 1]);
+  return if (t.tokens.type[tail] == type) { tail } else { -1 };
+}
+
+// --- block quote ----------------------------------------------------------------------------
+
+export Construct blockQuote = makeBlockQuote();
+
+Construct makeBlockQuote() {
+  Construct c = new Construct(C_BLOCK_QUOTE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    func(int)->void after = (int code) => {
+      if (markdownSpace(code)) {
+        t.enter(tBlockQuotePrefixWhitespace);
+        t.consume(code);
+        t.exit(tBlockQuotePrefixWhitespace);
+        t.exit(tBlockQuotePrefix);
+        t.next = ok;
+        return;
+      }
+      t.exit(tBlockQuotePrefix);
+      ok(code);
+    };
+    return (int code) => {
+      if (code == 62) {
+        if (!t.containerState.open) {
+          int token = t.enter(tBlockQuote);
+          t.tokens.set(token, F_CONTAINER);
+          t.containerState.open = true;
+        }
+        t.enter(tBlockQuotePrefix);
+        t.enter(tBlockQuoteMarker);
+        t.consume(code);
+        t.exit(tBlockQuoteMarker);
+        t.next = after;
+        return;
+      }
+      nok(code);
+    };
+  });
+  c.continuation = new Construct(C_NONE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    func(int)->void contBefore = (int code) => {
+      t.attemptOne(blockQuote, ok, nok)(code);
+    };
+    return (int code) => {
+      if (markdownSpace(code)) {
+        factorySpace(t, contBefore, tLinePrefix, codeIndentedMax(t, TAB_SIZE))(code);
+        return;
+      }
+      contBefore(code);
+    };
+  });
+  c.hasExit = true;
+  c.exit = (Tokenizer t) => {
+    t.exit(tBlockQuote);
+  };
+  return c;
+}
+
+// --- list -----------------------------------------------------------------------------------
+
+Construct listItemPrefixWhitespaceConstruct = makeListItemPrefixWhitespace();
+
+Construct makeListItemPrefixWhitespace() {
+  Construct c = new Construct(C_NONE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    func(int)->void afterPrefix = (int code) => {
+      if (!markdownSpace(code) && tailOfType(t, tListItemPrefixWhitespace) >= 0) {
+        ok(code);
+      } else {
+        nok(code);
+      }
+    };
+    return factorySpace(t, afterPrefix, tListItemPrefixWhitespace, codeIndentedMax(t, TAB_SIZE + 1));
+  });
+  c.partial = true;
+  return c;
+}
+
+Construct indentConstruct = makeIndent();
+
+Construct makeIndent() {
+  Construct c = new Construct(C_NONE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    func(int)->void afterPrefix = (int code) => {
+      int tail = tailOfType(t, tListItemIndent);
+      if (tail >= 0 && serializeToken(t.parser, tail, true).length == t.containerState.size) {
+        ok(code);
+      } else {
+        nok(code);
+      }
+    };
+    return factorySpace(t, afterPrefix, tListItemIndent, t.containerState.size + 1);
+  });
+  c.partial = true;
+  return c;
+}
+
+export Construct list = makeList();
+
+Construct makeList() {
+  Construct c = new Construct(C_LIST, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    int tailPrefix = tailOfType(t, tLinePrefix);
+    int initialSize = if (tailPrefix >= 0) { serializeToken(t.parser, tailPrefix, true).length } else { 0 };
+    int size = 0;
+
+    func(int)->void endOfPrefix = (int code) => {
+      t.containerState.size = initialSize + t.sliceSerialize(t.exit(tListItemPrefix), true).length;
+      ok(code);
+    };
+    func(int)->void onBlank = (int code) => {
+      t.containerState.initialBlankLine = true;
+      initialSize++;
+      endOfPrefix(code);
+    };
+    func(int)->void otherPrefix = (int code) => {
+      if (markdownSpace(code)) {
+        t.enter(tListItemPrefixWhitespace);
+        t.consume(code);
+        t.exit(tListItemPrefixWhitespace);
+        t.next = endOfPrefix;
+        return;
+      }
+      nok(code);
+    };
+    func(int)->void atMarker = (int code) => {
+      t.enter(tListItemMarker);
+      t.consume(code);
+      t.exit(tListItemMarker);
+      if (t.containerState.marker == 0) {
+        t.containerState.marker = code;
+      }
+      t.next = t.checkOne(blankLine, if (interrupt || t.interrupt) { nok } else { onBlank }, t.attemptOne(listItemPrefixWhitespaceConstruct, endOfPrefix, otherPrefix));
+    };
+    func(int)->void inside = noState;
+    inside = (int code) => {
+      if (asciiDigit(code) && ++size < 10) {
+        t.consume(code);
+        t.next = inside;
+        return;
+      }
+      bool markerOk = if (t.containerState.marker != 0) { code == t.containerState.marker } else { code == 41 || code == 46 };
+      if ((!(interrupt || t.interrupt) || size < 2) && markerOk) {
+        t.exit(tListItemValue);
+        atMarker(code);
+        return;
+      }
+      nok(code);
+    };
+    return (int code) => {
+      int kind = t.containerState.type;
+      if (kind < 0) {
+        kind = if (code == 42 || code == 43 || code == 45) { tListUnordered } else { tListOrdered };
+      }
+      bool admitted = if (kind == tListUnordered) {
+        t.containerState.marker == 0 || code == t.containerState.marker
+      } else {
+        asciiDigit(code)
+      };
+      if (admitted) {
+        if (t.containerState.type < 0) {
+          t.containerState.type = kind;
+          int token = t.enter(kind);
+          t.tokens.set(token, F_CONTAINER);
+        }
+        if (kind == tListUnordered) {
+          t.enter(tListItemPrefix);
+          if (code == 42 || code == 45) {
+            t.checkOne(thematicBreak, nok, atMarker)(code);
+          } else {
+            atMarker(code);
+          }
+          return;
+        }
+        if (!(interrupt || t.interrupt) || code == 49) {
+          t.enter(tListItemPrefix);
+          t.enter(tListItemValue);
+          inside(code);
+          return;
+        }
+      }
+      nok(code);
+    };
+  });
+
+  c.continuation = new Construct(C_NONE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    t.containerState.closeFlow = false;
+    func(int)->void notInCurrentItem = (int code) => {
+      t.containerState.closeFlow = true;
+      t.interrupt = false;
+      factorySpace(t, t.attemptOne(list, ok, nok), tLinePrefix, codeIndentedMax(t, TAB_SIZE))(code);
+    };
+    func(int)->void onBlank = (int code) => {
+      t.containerState.furtherBlankLines = t.containerState.furtherBlankLines || t.containerState.initialBlankLine;
+      factorySpace(t, ok, tListItemIndent, t.containerState.size + 1)(code);
+    };
+    func(int)->void notBlank = (int code) => {
+      if (t.containerState.furtherBlankLines || !markdownSpace(code)) {
+        t.containerState.furtherBlankLines = false;
+        t.containerState.initialBlankLine = false;
+        notInCurrentItem(code);
+        return;
+      }
+      t.containerState.furtherBlankLines = false;
+      t.containerState.initialBlankLine = false;
+      t.attemptOne(indentConstruct, ok, notInCurrentItem)(code);
+    };
+    return t.checkOne(blankLine, onBlank, notBlank);
+  });
+  c.hasExit = true;
+  c.exit = (Tokenizer t) => {
+    t.exit(t.containerState.type);
+  };
+  return c;
+}

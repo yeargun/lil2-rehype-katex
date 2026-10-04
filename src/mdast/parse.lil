@@ -1,0 +1,27 @@
+// mdast-util-from-markdown's `fromMarkdown(value, {extensions, mdastExtensions})` over the typed pipeline.
+
+import { SyntaxExtension, combineAll, createParser, parseDocument } from "../micromark/parse.lil";
+import { Parser } from "../micromark/tokenizer.lil";
+import { FromMarkdown, installCommonmark } from "./from-markdown.lil";
+import { Tree } from "./tree.lil";
+
+// Parses `value` into the typed arena (root: node 0) with syntax extensions and the from-markdown
+// handlers that go with them (installed after CommonMark's, in order). The other lil2 layers use this.
+export Tree parseTree(string value, SyntaxExtension[] extensions, (func(FromMarkdown)->void)[] installers) {
+  Parser parser = createParser(combineAll(extensions));
+  int[] events = parseDocument(parser, value);
+  FromMarkdown compiler = new FromMarkdown(parser);
+  installCommonmark(compiler);
+  for (func(FromMarkdown)->void install of installers) {
+    install(compiler);
+  }
+  compiler.compile(events);
+  return compiler.tree;
+}
+
+// CommonMark only.
+export Tree fromMarkdownTree(string value) {
+  SyntaxExtension[] extensions = [];
+  (func(FromMarkdown)->void)[] installers = [];
+  return parseTree(value, extensions, installers);
+}

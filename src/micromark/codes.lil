@@ -1,0 +1,98 @@
+// micromark codes (micromark-util-symbol `codes`), as ints. `EOF` replaces upstream's `null`; every
+// predicate that upstream guards with `code !== null` guards with `code != EOF` here.
+
+extern JsValue String;
+
+export const int EOF = -6;
+export const int CR = -5;
+export const int LF = -4;
+export const int CRLF = -3;
+export const int HT = -2;
+export const int VS = -1;
+export const int NUL = 0;
+export const int SPACE = 32;
+export const int REPLACEMENT = 65533;
+export const int BOM = 65279;
+export const int TAB_SIZE = 4;
+
+// micromark-util-character.
+export bool asciiAlpha(int c) {
+  return (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
+}
+
+export bool asciiDigit(int c) {
+  return c >= 48 && c <= 57;
+}
+
+export bool asciiAlphanumeric(int c) {
+  return asciiDigit(c) || asciiAlpha(c);
+}
+
+export bool asciiHexDigit(int c) {
+  return asciiDigit(c) || (c >= 65 && c <= 70) || (c >= 97 && c <= 102);
+}
+
+// [#-'*+\--9=?A-Z^-~]
+export bool asciiAtext(int c) {
+  return (c >= 35 && c <= 39) || c == 42 || c == 43 || (c >= 45 && c <= 57) || c == 61 || c == 63 ||
+    (c >= 65 && c <= 90) || (c >= 94 && c <= 126);
+}
+
+export bool asciiControl(int c) {
+  return c != EOF && (c < SPACE || c == 127);
+}
+
+// [!-/:-@[-`{-~]
+export bool asciiPunctuation(int c) {
+  return (c >= 33 && c <= 47) || (c >= 58 && c <= 64) || (c >= 91 && c <= 96) || (c >= 123 && c <= 126);
+}
+
+export bool markdownLineEnding(int c) {
+  return c != EOF && c < HT;
+}
+
+export bool markdownLineEndingOrSpace(int c) {
+  return c != EOF && (c < NUL || c == SPACE);
+}
+
+export bool markdownSpace(int c) {
+  return c == HT || c == VS || c == SPACE;
+}
+
+// One UTF-16 code unit as a string.
+export string charOf(int c) {
+  return JS.assume(String.fromCharCode(c));
+}
+
+Regex unicodePunctuationPattern = new Regex("\\p{P}|\\p{S}", "u");
+Regex unicodeWhitespacePattern = new Regex("\\s", "");
+
+// Every ASCII punctuation character is in \p{P} or \p{S}, and no other ASCII character is.
+export bool unicodePunctuation(int c) {
+  if (c < 128) {
+    return c > -1 && asciiPunctuation(c);
+  }
+  return unicodePunctuationPattern.test(charOf(c));
+}
+
+// ASCII \s is \t \n \v \f \r and space.
+export bool unicodeWhitespace(int c) {
+  if (c < 128) {
+    return (c >= 9 && c <= 13) || c == SPACE;
+  }
+  return unicodeWhitespacePattern.test(charOf(c));
+}
+
+// micromark-util-classify-character: 1 whitespace, 2 punctuation, 0 neither (upstream `undefined`).
+export const int GROUP_WHITESPACE = 1;
+export const int GROUP_PUNCTUATION = 2;
+
+export int classifyCharacter(int c) {
+  if (c == EOF || markdownLineEndingOrSpace(c) || unicodeWhitespace(c)) {
+    return GROUP_WHITESPACE;
+  }
+  if (unicodePunctuation(c)) {
+    return GROUP_PUNCTUATION;
+  }
+  return 0;
+}

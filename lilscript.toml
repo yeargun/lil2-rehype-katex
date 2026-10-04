@@ -1,0 +1,35 @@
+# lil2-rehype-katex: KaTeX on the typed, flat lil2 pipeline. Compiler-owned delivery.
+[policy]
+version = 3
+
+[policy.tactics]
+# Permit one-time constant-table decoding (the entity table) for smaller downloads.
+startup-reconstruction = "on"
+recurring-reconstruction = "off"
+string-array-packing = "off"
+
+[javascript]
+priority = "size-first"
+assume_pristine_builtins = true
+strip_debug = true
+assume_pure_property_reads = true
+assume_unconstructed_callbacks = true
+
+[effort]
+level = 15
+
+[objective]
+codecs = "brotli"
+
+[mangle]
+identifiers = true
+properties = true
+pool_strings = true
+
+[delivery]
+mode = "single"
+directory = "dist"
+entry_names = "rehype-katex.js"
+
+[delivery.entries]
+index = "src/index.lil"

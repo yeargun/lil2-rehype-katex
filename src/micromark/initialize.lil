@@ -1,0 +1,464 @@
+// micromark/lib/initialize: document, flow, content, text and string.
+
+import { EOF, HT, SPACE, TAB_SIZE, VS, markdownLineEnding } from "./codes.lil";
+import { tChunkFlow, tChunkText, tData, tHardBreakTrailing, tLineEnding, tLineEndingBlank, tLinePrefix, tLineSuffix, tParagraph } from "./types.lil";
+import { CT_FLOW, CT_TEXT, C_CODE_INDENTED, C_NONE, Construct, ConstructMap, ContainerState, Tokenizer, Tokens, defineResolver, enterEvent, eventToken, exitEvent, isEnter, newToken, noState, splice } from "./tokenizer.lil";
+import { factorySpace } from "./factories.lil";
+import { blankLine } from "./constructs/basic.lil";
+import { content } from "./constructs/flow.lil";
+
+// --- document -------------------------------------------------------------------------------
+
+// The document's container stack: a construct and its state per open container.
+class ContainerStack {
+  Construct[] constructs;
+  ContainerState[] states;
+
+  init() {
+    this.constructs = [];
+    this.states = [];
+  }
+}
+
+Construct containerConstruct = new Construct(C_NONE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+  int max = if (t.parser.constructs.disabled[C_CODE_INDENTED]) { 0 } else { TAB_SIZE };
+  return factorySpace(t, t.attemptMap(t.parser.constructs.document, ok, nok), tLinePrefix, max);
+});
+
+export Construct document = new Construct(C_NONE, (Tokenizer self, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+  Tokens tokens = self.tokens;
+  ContainerStack stack = new ContainerStack();
+  int continued = 0;
+  Tokenizer? childFlow = null;
+  int childToken = -1;
+  int lineStartOffset = 0;
+
+  func(int)->void start = noState;
+  func(int)->void checkNewContainers = noState;
+  func(int)->void documentContinued = noState;
+  func(int)->void flowStart = noState;
+  func(int)->void flowContinue = noState;
+
+  func(int)->void exitContainers = (int size) => {
+    int index = stack.constructs.length;
+    while (index-- > size) {
+      self.containerState = stack.states[index];
+      stack.constructs[index].exit(self);
+    }
+    stack.constructs.length = size;
+    stack.states.length = size;
+  };
+
+  func(int)->void closeFlow = (int unused) => {
+    Tokenizer? flow = childFlow;
+    if (flow != null) {
+      flow.write([EOF]);
+    }
+    childToken = -1;
+    childFlow = null;
+    self.containerState.closeFlow = false;
+  };
+
+  // Moves the exits of closed containers before the last flow chunk (or the one before it).
+  func(int, bool)->void moveExitsBeforeFlow = (int size, bool skipOne) => {
+    int indexBeforeExits = self.events.length;
+    int indexBeforeFlow = indexBeforeExits;
+    bool seen = false;
+    int point = -1;
+    while (indexBeforeFlow-- > 0) {
+      int token = eventToken(self.events[indexBeforeFlow]);
+      if (!isEnter(self.events[indexBeforeFlow]) && tokens.type[token] == tChunkFlow) {
+        if (!skipOne || seen) {
+          point = token;
+          break;
+        }
+        seen = true;
+      }
+    }
+    exitContainers(size);
+    int index = indexBeforeExits;
+    while (index < self.events.length) {
+      tokens.endAtEndOf(eventToken(self.events[index]), point);
+      index++;
+    }
+    splice(self.events, indexBeforeFlow + 1, 0, self.events.slice(indexBeforeExits));
+    self.events.length = index;
+  };
+
+  func(int, bool)->void writeToChild = (int token, bool endOfFile) => {
+    Tokenizer flow = childFlow ?? self;
+    int[] stream = self.sliceStream(token);
+    if (endOfFile) {
+      stream.push(EOF);
+    }
+    tokens.previous[token] = childToken;
+    if (childToken >= 0) {
+      tokens.next[childToken] = token;
+    }
+    childToken = token;
+    flow.defineSkipAt(tokens.sOffset[token]);
+    flow.write(stream);
+
+    if (self.parser.isLazy(self.parser.lineOf(tokens.sOffset[token]))) {
+      int index = flow.events.length;
+      while (index-- > 0) {
+        int other = eventToken(flow.events[index]);
+        if (tokens.sOffset[other] < lineStartOffset && (tokens.eIndex[other] < 0 || tokens.eOffset[other] > lineStartOffset)) {
+          return;
+        }
+      }
+      moveExitsBeforeFlow(continued, true);
+    }
+  };
+
+  func(int)->void documentContinue = (int code) => {
+    continued++;
+    if (self.containerState.closeFlow) {
+      self.containerState.closeFlow = false;
+      if (childFlow != null) {
+        closeFlow(0);
+      }
+      moveExitsBeforeFlow(continued, false);
+      checkNewContainers(code);
+      return;
+    }
+    start(code);
+  };
+
+  start = (int code) => {
+    if (continued < stack.constructs.length) {
+      self.containerState = stack.states[continued];
+      Construct continuation = stack.constructs[continued].continuation ?? stack.constructs[continued];
+      self.attemptOne(continuation, documentContinue, checkNewContainers)(code);
+      return;
+    }
+    checkNewContainers(code);
+  };
+
+  func(int)->void thereIsANewContainer = (int code) => {
+    if (childFlow != null) {
+      closeFlow(0);
+    }
+    exitContainers(continued);
+    documentContinued(code);
+  };
+
+  func(int)->void thereIsNoNewContainer = (int code) => {
+    self.parser.lazy.set(self.line, continued != stack.constructs.length);
+    lineStartOffset = self.offset;
+    flowStart(code);
+  };
+
+  checkNewContainers = (int code) => {
+    if (continued == stack.constructs.length) {
+      Tokenizer? flow = childFlow;
+      if (flow == null) {
+        documentContinued(code);
+        return;
+      }
+      Construct? current = flow.currentConstruct;
+      if (current != null && current.concrete) {
+        flowStart(code);
+        return;
+      }
+      self.interrupt = current != null && !flow.gfmTableDynamicInterruptHack;
+    }
+    self.containerState = new ContainerState();
+    self.checkOne(containerConstruct, thereIsANewContainer, thereIsNoNewContainer)(code);
+  };
+
+  func(int)->void containerContinue = (int code) => {
+    continued++;
+    stack.constructs.push(self.currentConstruct ?? containerConstruct);
+    stack.states.push(self.containerState);
+    documentContinued(code);
+  };
+
+  documentContinued = (int code) => {
+    self.containerState = new ContainerState();
+    self.attemptOne(containerConstruct, containerContinue, flowStart)(code);
+  };
+
+  flowStart = (int code) => {
+    if (code == EOF) {
+      if (childFlow != null) {
+        closeFlow(0);
+      }
+      exitContainers(0);
+      self.consume(code);
+      self.next = noState;
+      return;
+    }
+    if (childFlow == null) {
+      childFlow = self.parser.create(CT_FLOW, self.offset);
+    }
+    Tokenizer flow = childFlow ?? self;
+    int token = self.enter(tChunkFlow);
+    tokens.child[token] = flow.id;
+    tokens.contentType[token] = CT_FLOW;
+    tokens.previous[token] = childToken;
+    flowContinue(code);
+  };
+
+  flowContinue = (int code) => {
+    if (code == EOF) {
+      writeToChild(self.exit(tChunkFlow), true);
+      exitContainers(0);
+      self.consume(code);
+      self.next = noState;
+      return;
+    }
+    if (markdownLineEnding(code)) {
+      self.consume(code);
+      writeToChild(self.exit(tChunkFlow), false);
+      continued = 0;
+      self.interrupt = false;
+      self.next = start;
+      return;
+    }
+    self.consume(code);
+    self.next = flowContinue;
+  };
+
+  return start;
+});
+
+// --- flow -----------------------------------------------------------------------------------
+
+export Construct flow = new Construct(C_NONE, (Tokenizer self, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+  func(int)->void initial = noState;
+  func(int)->void atBlankEnding = (int code) => {
+    if (code == EOF) {
+      self.consume(code);
+      self.next = noState;
+      return;
+    }
+    self.enter(tLineEndingBlank);
+    self.consume(code);
+    self.exit(tLineEndingBlank);
+    self.currentConstruct = null;
+    self.next = initial;
+  };
+  func(int)->void afterConstruct = (int code) => {
+    if (code == EOF) {
+      self.consume(code);
+      self.next = noState;
+      return;
+    }
+    self.enter(tLineEnding);
+    self.consume(code);
+    self.exit(tLineEnding);
+    self.currentConstruct = null;
+    self.next = initial;
+  };
+  initial = self.attemptOne(
+    blankLine,
+    atBlankEnding,
+    self.attemptMap(
+      self.parser.constructs.flowInitial,
+      afterConstruct,
+      factorySpace(
+        self,
+        self.attemptMap(self.parser.constructs.flow, afterConstruct, self.attemptOne(content, afterConstruct, noState)),
+        tLinePrefix,
+        0
+      )
+    )
+  );
+  return initial;
+});
+
+// --- content --------------------------------------------------------------------------------
+
+export Construct contentInit = new Construct(C_NONE, (Tokenizer self, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+  int previous = -1;
+  func(int)->void contentStart = noState;
+  func(int)->void data = noState;
+  func(int)->void lineStart = (int code) => {
+    int token = self.enter(tChunkText);
+    self.tokens.contentType[token] = CT_TEXT;
+    self.tokens.previous[token] = previous;
+    if (previous >= 0) {
+      self.tokens.next[previous] = token;
+    }
+    previous = token;
+    data(code);
+  };
+  data = (int code) => {
+    if (code == EOF) {
+      self.exit(tChunkText);
+      self.exit(tParagraph);
+      self.consume(code);
+      self.next = noState;
+      return;
+    }
+    if (markdownLineEnding(code)) {
+      self.consume(code);
+      self.exit(tChunkText);
+      self.next = lineStart;
+      return;
+    }
+    self.consume(code);
+    self.next = data;
+  };
+  func(int)->void paragraphInitial = (int code) => {
+    self.enter(tParagraph);
+    lineStart(code);
+  };
+  func(int)->void afterContentStartConstruct = (int code) => {
+    if (code == EOF) {
+      self.consume(code);
+      self.next = noState;
+      return;
+    }
+    self.enter(tLineEnding);
+    self.consume(code);
+    self.exit(tLineEnding);
+    self.next = factorySpace(self, contentStart, tLinePrefix, 0);
+  };
+  contentStart = self.attemptMap(self.parser.constructs.contentInitial, afterContentStartConstruct, paragraphInitial);
+  return contentStart;
+});
+
+// --- text and string ------------------------------------------------------------------------
+
+int[] resolveAllText(int[] events, Tokenizer t) {
+  Tokens tokens = t.tokens;
+  int index = -1;
+  int enter = -1;
+  while (++index <= events.length) {
+    if (enter < 0) {
+      if (index < events.length && tokens.type[eventToken(events[index])] == tData) {
+        enter = index;
+        index++;
+      }
+    } else if (index == events.length || tokens.type[eventToken(events[index])] != tData) {
+      if (index != enter + 2) {
+        tokens.endAtEndOf(eventToken(events[enter]), eventToken(events[index - 1]));
+        splice(events, enter + 2, index - enter - 2, []);
+        index = enter + 2;
+      }
+      enter = -1;
+    }
+  }
+  return events;
+}
+
+int[] resolveAllLineSuffixes(int[] events, Tokenizer t) {
+  Tokens tokens = t.tokens;
+  int eventIndex = 0;
+  while (++eventIndex <= events.length) {
+    if ((eventIndex == events.length || tokens.type[eventToken(events[eventIndex])] == tLineEnding) &&
+        tokens.type[eventToken(events[eventIndex - 1])] == tData) {
+      int data = eventToken(events[eventIndex - 1]);
+      int startIndex = tokens.sIndex[data];
+      int index = tokens.eIndex[data];
+      int size = 0;
+      bool tabs = false;
+      while (index > startIndex) {
+        int code = t.codes[index - 1];
+        if (code == SPACE) {
+          size++;
+        } else if (code == HT) {
+          tabs = true;
+          size++;
+        } else if (code != VS) {
+          break;
+        }
+        index--;
+      }
+      if (t.contentTypeTextTrailing && eventIndex == events.length) {
+        size = 0;
+      }
+      if (size != 0) {
+        int type = if (eventIndex == events.length || tabs || size < 2) { tLineSuffix } else { tHardBreakTrailing };
+        int token = newToken(t, type);
+        tokens.sIndex[token] = index;
+        tokens.sOffset[token] = tokens.eOffset[data] - size;
+        tokens.endAtEndOf(token, data);
+        tokens.endAtStartOf(data, token);
+        if (tokens.sOffset[data] == tokens.eOffset[data]) {
+          tokens.type[data] = type;
+          tokens.startAtStartOf(data, token);
+          tokens.endAtEndOf(data, token);
+        } else {
+          splice(events, eventIndex, 0, [enterEvent(token), exitEvent(token)]);
+          eventIndex += 2;
+        }
+      }
+      eventIndex++;
+    }
+  }
+  return events;
+}
+
+export int textResolver = defineResolver((int[] events, Tokenizer t) => resolveAllLineSuffixes(resolveAllText(events, t), t));
+export int stringResolver = defineResolver(resolveAllText);
+
+// `insideSpan`'s text resolver (upstream `resolver` from initialize/text.js).
+export Construct textResolveConstruct = makeTextResolveConstruct();
+
+Construct makeTextResolveConstruct() {
+  Construct c = new Construct(C_NONE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => noState);
+  c.resolveAll = stringResolver;
+  return c;
+}
+
+Construct makeInlineInit(bool isText) {
+  Construct c = new Construct(C_NONE, (Tokenizer self, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    ConstructMap constructs = if (isText) { self.parser.constructs.text } else { self.parser.constructs.string };
+    func(int)->void start = noState;
+    func(int)->void data = noState;
+    func(int)->void notText = noState;
+    func(int)->void text = self.attemptMap(constructs, (int code) => {
+      start(code);
+    }, (int code) => {
+      notText(code);
+    });
+    func(int)->bool atBreak = (int code) => {
+      if (code == EOF) {
+        return true;
+      }
+      if (constructs.hasCode(code)) {
+        for (Construct item of constructs.atCode(code)) {
+          if (!item.hasPrevious || item.previous(self, self.previous)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+    notText = (int code) => {
+      if (code == EOF) {
+        self.consume(code);
+        self.next = noState;
+        return;
+      }
+      self.enter(tData);
+      self.consume(code);
+      self.next = data;
+    };
+    data = (int code) => {
+      if (atBreak(code)) {
+        self.exit(tData);
+        text(code);
+        return;
+      }
+      self.consume(code);
+      self.next = data;
+    };
+    start = (int code) => {
+      if (atBreak(code)) {
+        text(code);
+      } else {
+        notText(code);
+      }
+    };
+    return start;
+  });
+  c.resolveAll = if (isText) { textResolver } else { stringResolver };
+  return c;
+}
+
+export Construct textInit = makeInlineInit(true);
+export Construct stringInit = makeInlineInit(false);

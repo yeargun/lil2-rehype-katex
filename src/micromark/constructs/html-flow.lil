@@ -1,0 +1,482 @@
+// micromark-core-commonmark: html-flow, plus micromark-util-html-tag-name.
+
+import { EOF, asciiAlpha, asciiAlphanumeric, charOf, markdownLineEnding, markdownLineEndingOrSpace, markdownSpace } from "../codes.lil";
+import { tHtmlFlow, tHtmlFlowData, tLineEnding, tLinePrefix } from "../types.lil";
+import { C_HTML_FLOW, C_NONE, Construct, Tokenizer, eventToken, isEnter, noState, splice } from "../tokenizer.lil";
+import { blankLine } from "./basic.lil";
+
+export string[] htmlBlockNames = ["address", "article", "aside", "base", "basefont", "blockquote", "body", "caption", "center", "col", "colgroup", "dd", "details", "dialog", "dir", "div", "dl", "dt", "fieldset", "figcaption", "figure", "footer", "form", "frame", "frameset", "h1", "h2", "h3", "h4", "h5", "h6", "head", "header", "hr", "html", "iframe", "legend", "li", "link", "main", "menu", "menuitem", "nav", "noframes", "ol", "optgroup", "option", "p", "param", "search", "section", "summary", "table", "tbody", "td", "tfoot", "th", "thead", "title", "tr", "track", "ul"];
+export string[] htmlRawNames = ["pre", "script", "style", "textarea"];
+
+const int HTML_RAW = 1;
+const int HTML_COMMENT = 2;
+const int HTML_INSTRUCTION = 3;
+const int HTML_DECLARATION = 4;
+const int HTML_CDATA = 5;
+const int HTML_BASIC = 6;
+const int HTML_COMPLETE = 7;
+
+int[] resolveToHtmlFlow(int[] events, Tokenizer t) {
+  int index = events.length;
+  while (index-- > 0) {
+    if (isEnter(events[index]) && t.tokens.type[eventToken(events[index])] == tHtmlFlow) {
+      break;
+    }
+  }
+  if (index > 1 && t.tokens.type[eventToken(events[index - 2])] == tLinePrefix) {
+    int prefix = eventToken(events[index - 2]);
+    t.tokens.startAtStartOf(eventToken(events[index]), prefix);
+    t.tokens.startAtStartOf(eventToken(events[index + 1]), prefix);
+    splice(events, index - 2, 2, []);
+  }
+  return events;
+}
+
+Construct nonLazyContinuationStart = makeNonLazyContinuationStart();
+
+Construct makeNonLazyContinuationStart() {
+  Construct c = new Construct(C_NONE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    func(int)->void after = (int code) => {
+      if (t.parser.isLazy(t.line)) {
+        nok(code);
+      } else {
+        ok(code);
+      }
+    };
+    return (int code) => {
+      if (markdownLineEnding(code)) {
+        t.enter(tLineEnding);
+        t.consume(code);
+        t.exit(tLineEnding);
+        t.next = after;
+        return;
+      }
+      nok(code);
+    };
+  });
+  c.partial = true;
+  return c;
+}
+
+Construct blankLineBefore = makeBlankLineBefore();
+
+Construct makeBlankLineBefore() {
+  Construct c = new Construct(C_NONE, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => (int code) => {
+    t.enter(tLineEnding);
+    t.consume(code);
+    t.exit(tLineEnding);
+    t.next = t.attemptOne(blankLine, ok, nok);
+  });
+  c.partial = true;
+  return c;
+}
+
+export Construct htmlFlow = makeHtmlFlow();
+
+Construct makeHtmlFlow() {
+  Construct c = new Construct(C_HTML_FLOW, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    int marker = 0;
+    bool closingTag = false;
+    string buffer = "";
+    int index = 0;
+    int markerB = 0;
+
+    func(int)->void continuation = noState;
+    func(int)->void continuationStart = noState;
+    func(int)->void continuationAfter = (int code) => {
+      t.exit(tHtmlFlow);
+      ok(code);
+    };
+    func(int)->void continuationClose = noState;
+    continuationClose = (int code) => {
+      if (code == EOF || markdownLineEnding(code)) {
+        t.exit(tHtmlFlowData);
+        continuationAfter(code);
+        return;
+      }
+      t.consume(code);
+      t.next = continuationClose;
+    };
+    func(int)->void continuationDeclarationInside = noState;
+    continuationDeclarationInside = (int code) => {
+      if (code == 62) {
+        t.consume(code);
+        t.next = continuationClose;
+        return;
+      }
+      if (code == 45 && marker == HTML_COMMENT) {
+        t.consume(code);
+        t.next = continuationDeclarationInside;
+        return;
+      }
+      continuation(code);
+    };
+    func(int)->void continuationCdataInside = (int code) => {
+      if (code == 93) {
+        t.consume(code);
+        t.next = continuationDeclarationInside;
+        return;
+      }
+      continuation(code);
+    };
+    func(int)->void continuationRawEndTag = noState;
+    continuationRawEndTag = (int code) => {
+      if (code == 62) {
+        if (htmlRawNames.includes(buffer.toLowerCase())) {
+          t.consume(code);
+          t.next = continuationClose;
+          return;
+        }
+        continuation(code);
+        return;
+      }
+      if (asciiAlpha(code) && buffer.length < 8) {
+        t.consume(code);
+        buffer += charOf(code);
+        t.next = continuationRawEndTag;
+        return;
+      }
+      continuation(code);
+    };
+    func(int)->void continuationRawTagOpen = (int code) => {
+      if (code == 47) {
+        t.consume(code);
+        buffer = "";
+        t.next = continuationRawEndTag;
+        return;
+      }
+      continuation(code);
+    };
+    func(int)->void continuationCommentInside = (int code) => {
+      if (code == 45) {
+        t.consume(code);
+        t.next = continuationDeclarationInside;
+        return;
+      }
+      continuation(code);
+    };
+    func(int)->void continuationBefore = (int code) => {
+      if (code == EOF || markdownLineEnding(code)) {
+        continuationStart(code);
+        return;
+      }
+      t.enter(tHtmlFlowData);
+      continuation(code);
+    };
+    func(int)->void continuationStartNonLazy = (int code) => {
+      t.enter(tLineEnding);
+      t.consume(code);
+      t.exit(tLineEnding);
+      t.next = continuationBefore;
+    };
+    continuationStart = (int code) => {
+      t.checkOne(nonLazyContinuationStart, continuationStartNonLazy, continuationAfter)(code);
+    };
+    continuation = (int code) => {
+      if (code == 45 && marker == HTML_COMMENT) {
+        t.consume(code);
+        t.next = continuationCommentInside;
+        return;
+      }
+      if (code == 60 && marker == HTML_RAW) {
+        t.consume(code);
+        t.next = continuationRawTagOpen;
+        return;
+      }
+      if (code == 62 && marker == HTML_DECLARATION) {
+        t.consume(code);
+        t.next = continuationClose;
+        return;
+      }
+      if (code == 63 && marker == HTML_INSTRUCTION) {
+        t.consume(code);
+        t.next = continuationDeclarationInside;
+        return;
+      }
+      if (code == 93 && marker == HTML_CDATA) {
+        t.consume(code);
+        t.next = continuationCdataInside;
+        return;
+      }
+      if (markdownLineEnding(code) && (marker == HTML_BASIC || marker == HTML_COMPLETE)) {
+        t.exit(tHtmlFlowData);
+        t.checkOne(blankLineBefore, continuationAfter, continuationStart)(code);
+        return;
+      }
+      if (code == EOF || markdownLineEnding(code)) {
+        t.exit(tHtmlFlowData);
+        continuationStart(code);
+        return;
+      }
+      t.consume(code);
+      t.next = continuation;
+    };
+
+    func(int)->void completeAfter = noState;
+    completeAfter = (int code) => {
+      if (code == EOF || markdownLineEnding(code)) {
+        continuation(code);
+        return;
+      }
+      if (markdownSpace(code)) {
+        t.consume(code);
+        t.next = completeAfter;
+        return;
+      }
+      nok(code);
+    };
+    func(int)->void completeEnd = (int code) => {
+      if (code == 62) {
+        t.consume(code);
+        t.next = completeAfter;
+        return;
+      }
+      nok(code);
+    };
+    func(int)->void completeAttributeNameBefore = noState;
+    func(int)->void completeAttributeName = noState;
+    func(int)->void completeAttributeNameAfter = noState;
+    func(int)->void completeAttributeValueBefore = noState;
+    func(int)->void completeAttributeValueQuoted = noState;
+    func(int)->void completeAttributeValueUnquoted = noState;
+    func(int)->void completeAttributeValueQuotedAfter = (int code) => {
+      if (code == 47 || code == 62 || markdownSpace(code)) {
+        completeAttributeNameBefore(code);
+        return;
+      }
+      nok(code);
+    };
+    completeAttributeValueUnquoted = (int code) => {
+      if (code == EOF || code == 34 || code == 39 || code == 47 || code == 60 || code == 61 || code == 62 || code == 96 || markdownLineEndingOrSpace(code)) {
+        completeAttributeNameAfter(code);
+        return;
+      }
+      t.consume(code);
+      t.next = completeAttributeValueUnquoted;
+    };
+    completeAttributeValueQuoted = (int code) => {
+      if (code == markerB) {
+        t.consume(code);
+        markerB = 0;
+        t.next = completeAttributeValueQuotedAfter;
+        return;
+      }
+      if (code == EOF || markdownLineEnding(code)) {
+        nok(code);
+        return;
+      }
+      t.consume(code);
+      t.next = completeAttributeValueQuoted;
+    };
+    completeAttributeValueBefore = (int code) => {
+      if (code == EOF || code == 60 || code == 61 || code == 62 || code == 96) {
+        nok(code);
+        return;
+      }
+      if (code == 34 || code == 39) {
+        t.consume(code);
+        markerB = code;
+        t.next = completeAttributeValueQuoted;
+        return;
+      }
+      if (markdownSpace(code)) {
+        t.consume(code);
+        t.next = completeAttributeValueBefore;
+        return;
+      }
+      completeAttributeValueUnquoted(code);
+    };
+    completeAttributeNameAfter = (int code) => {
+      if (code == 61) {
+        t.consume(code);
+        t.next = completeAttributeValueBefore;
+        return;
+      }
+      if (markdownSpace(code)) {
+        t.consume(code);
+        t.next = completeAttributeNameAfter;
+        return;
+      }
+      completeAttributeNameBefore(code);
+    };
+    completeAttributeName = (int code) => {
+      if (code == 45 || code == 46 || code == 58 || code == 95 || asciiAlphanumeric(code)) {
+        t.consume(code);
+        t.next = completeAttributeName;
+        return;
+      }
+      completeAttributeNameAfter(code);
+    };
+    completeAttributeNameBefore = (int code) => {
+      if (code == 47) {
+        t.consume(code);
+        t.next = completeEnd;
+        return;
+      }
+      if (code == 58 || code == 95 || asciiAlpha(code)) {
+        t.consume(code);
+        t.next = completeAttributeName;
+        return;
+      }
+      if (markdownSpace(code)) {
+        t.consume(code);
+        t.next = completeAttributeNameBefore;
+        return;
+      }
+      completeEnd(code);
+    };
+    func(int)->void completeClosingTagAfter = noState;
+    completeClosingTagAfter = (int code) => {
+      if (markdownSpace(code)) {
+        t.consume(code);
+        t.next = completeClosingTagAfter;
+        return;
+      }
+      completeEnd(code);
+    };
+    func(int)->void basicSelfClosing = (int code) => {
+      if (code == 62) {
+        t.consume(code);
+        t.next = if (interrupt || t.interrupt) { ok } else { continuation };
+        return;
+      }
+      nok(code);
+    };
+    func(int)->void tagName = noState;
+    tagName = (int code) => {
+      if (code == EOF || code == 47 || code == 62 || markdownLineEndingOrSpace(code)) {
+        bool slash = code == 47;
+        string name = buffer.toLowerCase();
+        if (!slash && !closingTag && htmlRawNames.includes(name)) {
+          marker = HTML_RAW;
+          if (interrupt || t.interrupt) {
+            ok(code);
+          } else {
+            continuation(code);
+          }
+          return;
+        }
+        if (htmlBlockNames.includes(name)) {
+          marker = HTML_BASIC;
+          if (slash) {
+            t.consume(code);
+            t.next = basicSelfClosing;
+            return;
+          }
+          if (interrupt || t.interrupt) {
+            ok(code);
+          } else {
+            continuation(code);
+          }
+          return;
+        }
+        marker = HTML_COMPLETE;
+        if ((interrupt || t.interrupt) && !t.parser.isLazy(t.line)) {
+          nok(code);
+        } else if (closingTag) {
+          completeClosingTagAfter(code);
+        } else {
+          completeAttributeNameBefore(code);
+        }
+        return;
+      }
+      if (code == 45 || asciiAlphanumeric(code)) {
+        t.consume(code);
+        buffer += charOf(code);
+        t.next = tagName;
+        return;
+      }
+      nok(code);
+    };
+    func(int)->void tagCloseStart = (int code) => {
+      if (asciiAlpha(code)) {
+        t.consume(code);
+        buffer = charOf(code);
+        t.next = tagName;
+        return;
+      }
+      nok(code);
+    };
+    func(int)->void cdataOpenInside = noState;
+    cdataOpenInside = (int code) => {
+      string value = "CDATA[";
+      if (index < value.length && code == value.codeUnitAt(index)) {
+        index++;
+        t.consume(code);
+        if (index == value.length) {
+          t.next = if (interrupt || t.interrupt) { ok } else { continuation };
+          return;
+        }
+        t.next = cdataOpenInside;
+        return;
+      }
+      nok(code);
+    };
+    func(int)->void commentOpenInside = (int code) => {
+      if (code == 45) {
+        t.consume(code);
+        t.next = if (interrupt || t.interrupt) { ok } else { continuationDeclarationInside };
+        return;
+      }
+      nok(code);
+    };
+    func(int)->void declarationOpen = (int code) => {
+      if (code == 45) {
+        t.consume(code);
+        marker = HTML_COMMENT;
+        t.next = commentOpenInside;
+        return;
+      }
+      if (code == 91) {
+        t.consume(code);
+        marker = HTML_CDATA;
+        index = 0;
+        t.next = cdataOpenInside;
+        return;
+      }
+      if (asciiAlpha(code)) {
+        t.consume(code);
+        marker = HTML_DECLARATION;
+        t.next = if (interrupt || t.interrupt) { ok } else { continuationDeclarationInside };
+        return;
+      }
+      nok(code);
+    };
+    func(int)->void open = (int code) => {
+      if (code == 33) {
+        t.consume(code);
+        t.next = declarationOpen;
+        return;
+      }
+      if (code == 47) {
+        t.consume(code);
+        closingTag = true;
+        t.next = tagCloseStart;
+        return;
+      }
+      if (code == 63) {
+        t.consume(code);
+        marker = HTML_INSTRUCTION;
+        t.next = if (interrupt || t.interrupt) { ok } else { continuationDeclarationInside };
+        return;
+      }
+      if (asciiAlpha(code)) {
+        t.consume(code);
+        buffer = charOf(code);
+        t.next = tagName;
+        return;
+      }
+      nok(code);
+    };
+    return (int code) => {
+      t.enter(tHtmlFlow);
+      t.enter(tHtmlFlowData);
+      t.consume(code);
+      t.next = open;
+    };
+  });
+  c.concrete = true;
+  c.hasResolveTo = true;
+  c.resolveTo = resolveToHtmlFlow;
+  return c;
+}

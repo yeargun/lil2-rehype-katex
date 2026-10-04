@@ -1,0 +1,256 @@
+// micromark-util-subtokenize: expands chunk tokens (`contentType`) into the events of child
+// tokenizers, and moves container exits before trailing blank lines.
+
+import { EOF } from "./codes.lil";
+import { tChunkFlow, tChunkText, tContent, tLineEnding, tLineEndingBlank, tLinePrefix, tListItemIndent, tListItemPrefix } from "./types.lil";
+import { CT_NONE, F_CONTAINER, F_FIRST_CONTENT_OF_LIST_ITEM, F_TEXT_TRAILING, Parser, Tokenizer, Tokens, eventToken, isEnter, splice } from "./tokenizer.lil";
+
+// micromark-util-subtokenize's SpliceBuffer: a gap buffer, so splices near a moving cursor are cheap.
+class SpliceBuffer {
+  int[] left;
+  int[] right;
+
+  // Works in place: `initial` becomes the left side and holds everything again after `flush`.
+  init(int[] initial) {
+    this.left = initial;
+    this.right = [];
+  }
+
+  void flush() {
+    this.setCursor(this.left.length + this.right.length);
+  }
+
+  int length() {
+    return this.left.length + this.right.length;
+  }
+
+  int get(int index) {
+    if (index < this.left.length) {
+      return this.left[index];
+    }
+    return this.right[this.right.length - index + this.left.length - 1];
+  }
+
+  // `slice(start, end)`; `end` -1 means to the end.
+  int[] slice(int start, int end) {
+    int stop = if (end < 0) { this.left.length + this.right.length } else { end };
+    if (stop < this.left.length) {
+      return this.left.slice(start, stop);
+    }
+    if (start > this.left.length) {
+      int[] part = this.right.slice(this.right.length - stop + this.left.length, this.right.length - start + this.left.length);
+      part.reverse();
+      return part;
+    }
+    int[] head = this.left.slice(start);
+    int[] tail = this.right.slice(this.right.length - stop + this.left.length);
+    tail.reverse();
+    for (int item of tail) {
+      head.push(item);
+    }
+    return head;
+  }
+
+  void splice(int start, int deleteCount, int[] items) {
+    this.setCursor(start);
+    this.right.length = this.right.length - deleteCount;
+    for (int item of items) {
+      this.left.push(item);
+    }
+  }
+
+  void setCursor(int n) {
+    int total = this.left.length + this.right.length;
+    if (n == this.left.length || (n > this.left.length && this.right.length == 0) || (n < 0 && this.left.length == 0)) {
+      return;
+    }
+    if (n < this.left.length) {
+      int index = this.left.length;
+      while (index > n) {
+        index--;
+        this.right.push(this.left[index]);
+      }
+      this.left.length = n;
+    } else {
+      int target = if (n > total) { total } else { n };
+      while (this.left.length < target) {
+        this.left.push(this.right.pop());
+      }
+    }
+  }
+}
+
+// Returns true when there is nothing left to expand.
+export bool subtokenize(int[] eventsArray, Parser parser) {
+  Tokens tokens = parser.tokens;
+  SpliceBuffer events = new SpliceBuffer(eventsArray);
+  // Jumps over expanded child events, by event index (-1: none); upstream's `jumps` object.
+  int[] jumps = [];
+  bool more = false;
+  int index = -1;
+  while (++index < events.length()) {
+    while (index < jumps.length && jumps[index] >= 0) {
+      index = jumps[index];
+    }
+    int event = events.get(index);
+    int token = eventToken(event);
+
+    // Mark text chunks in the first content of a list item (for GFM task lists).
+    if (index > 0 && tokens.type[token] == tChunkFlow && tokens.child[token] >= 0 && tokens.type[eventToken(events.get(index - 1))] == tListItemPrefix) {
+      Tokenizer child = parser.tokenizers[tokens.child[token]];
+      int[] subevents = child.events;
+      int otherIndex = 0;
+      if (otherIndex < subevents.length && tokens.type[eventToken(subevents[otherIndex])] == tLineEndingBlank) {
+        otherIndex += 2;
+      }
+      if (otherIndex < subevents.length && tokens.type[eventToken(subevents[otherIndex])] == tContent) {
+        while (++otherIndex < subevents.length) {
+          int other = eventToken(subevents[otherIndex]);
+          if (tokens.type[other] == tContent) {
+            break;
+          }
+          if (tokens.type[other] == tChunkText) {
+            tokens.set(other, F_FIRST_CONTENT_OF_LIST_ITEM);
+            otherIndex++;
+          }
+        }
+      }
+    }
+
+    if (isEnter(event)) {
+      if (tokens.contentType[token] != CT_NONE) {
+        int[] gaps = subcontent(events, index, parser);
+        for (int at = 0; at < gaps.length; at += 2) {
+          while (jumps.length <= gaps[at]) {
+            jumps.push(-1);
+          }
+          jumps[gaps[at]] = gaps[at + 1];
+        }
+        if (index < jumps.length && jumps[index] >= 0) {
+          index = jumps[index];
+        }
+        more = true;
+      }
+    } else if (tokens.has(token, F_CONTAINER)) {
+      int otherIndex = index;
+      int lineIndex = -1;
+      while (otherIndex-- > 0) {
+        int otherEvent = events.get(otherIndex);
+        int other = eventToken(otherEvent);
+        int type = tokens.type[other];
+        if (type == tLineEnding || type == tLineEndingBlank) {
+          if (isEnter(otherEvent)) {
+            if (lineIndex > 0) {
+              tokens.type[eventToken(events.get(lineIndex))] = tLineEndingBlank;
+            }
+            tokens.type[other] = tLineEnding;
+            lineIndex = otherIndex;
+          }
+        } else if (type == tLinePrefix || type == tListItemIndent) {
+          // Move past.
+        } else {
+          break;
+        }
+      }
+      if (lineIndex > 0) {
+        tokens.endAtStartOf(token, eventToken(events.get(lineIndex)));
+        int[] parameters = [event, ...events.slice(lineIndex, index)];
+        events.splice(lineIndex, index - lineIndex + 1, parameters);
+      }
+    }
+  }
+  events.flush();
+  return !more;
+}
+
+// Returns the jumps over the inserted child events, as `[from, to, from, to, …]`.
+int[] subcontent(SpliceBuffer events, int eventIndex, Parser parser) {
+  Tokens tokens = parser.tokens;
+  int token = eventToken(events.get(eventIndex));
+  Tokenizer context = parser.tokenizers[tokens.tokenizer[token]];
+  int startPosition = eventIndex - 1;
+  int[] startPositions = [];
+  Tokenizer tokenizer = if (tokens.child[token] >= 0) {
+    parser.tokenizers[tokens.child[token]]
+  } else {
+    parser.create(tokens.contentType[token], tokens.sOffset[token])
+  };
+  if (tokens.child[token] < 0 && tokens.has(token, F_TEXT_TRAILING)) {
+    tokenizer.contentTypeTextTrailing = true;
+  }
+  int[] jumpStarts = [];
+  int[] jumpEnds = [];
+  int[] gaps = [];
+  int previous = -1;
+  int current = token;
+  int adjust = 0;
+  int[] breaks = [0];
+
+  while (current >= 0) {
+    while (eventToken(events.get(++startPosition)) != current) {
+      // Find the chunk's own enter event.
+    }
+    startPositions.push(startPosition);
+    if (tokens.child[current] < 0) {
+      int[] stream = context.sliceStream(current);
+      if (tokens.next[current] < 0) {
+        stream.push(EOF);
+      }
+      if (previous >= 0) {
+        tokenizer.defineSkipAt(tokens.sOffset[current]);
+      }
+      bool first = tokens.has(current, F_FIRST_CONTENT_OF_LIST_ITEM);
+      if (first) {
+        tokenizer.gfmTasklistFirstContentOfListItem = true;
+      }
+      tokenizer.write(stream);
+      if (first) {
+        tokenizer.gfmTasklistFirstContentOfListItem = false;
+      }
+    }
+    previous = current;
+    current = tokens.next[current];
+  }
+
+  int[] childEvents = tokenizer.events;
+  current = token;
+  int index = -1;
+  while (++index < childEvents.length) {
+    if (index > 0 && !isEnter(childEvents[index]) && isEnter(childEvents[index - 1])) {
+      int exitToken = eventToken(childEvents[index]);
+      int enterToken = eventToken(childEvents[index - 1]);
+      if (tokens.type[exitToken] == tokens.type[enterToken] && parser.lineOf(tokens.sOffset[exitToken]) != parser.lineOf(tokens.eOffset[exitToken])) {
+        breaks.push(index + 1);
+        tokens.child[current] = -1;
+        tokens.previous[current] = -1;
+        current = tokens.next[current];
+      }
+    }
+  }
+
+  tokenizer.events = [];
+  if (current >= 0) {
+    tokens.child[current] = -1;
+    tokens.previous[current] = -1;
+  } else {
+    breaks.pop();
+  }
+
+  index = breaks.length;
+  while (index-- > 0) {
+    int end = if (index + 1 < breaks.length) { breaks[index + 1] } else { childEvents.length };
+    int[] slice = childEvents.slice(breaks[index], end);
+    int start = startPositions.pop();
+    jumpStarts.push(start);
+    jumpEnds.push(start + slice.length - 1);
+    events.splice(start, 2, slice);
+  }
+
+  index = jumpStarts.length;
+  while (index-- > 0) {
+    gaps.push(adjust + jumpStarts[index]);
+    gaps.push(adjust + jumpEnds[index]);
+    adjust += jumpEnds[index] - jumpStarts[index] - 1;
+  }
+  return gaps;
+}

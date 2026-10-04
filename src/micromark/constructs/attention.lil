@@ -1,0 +1,128 @@
+// micromark-core-commonmark: attention (emphasis and strong).
+
+import { GROUP_PUNCTUATION, classifyCharacter } from "../codes.lil";
+import { tAttentionSequence, tData, tEmphasis, tEmphasisSequence, tEmphasisText, tStrong, tStrongSequence, tStrongText } from "../types.lil";
+import { C_ATTENTION, F_CLOSE, F_OPEN, Construct, Tokenizer, Tokens, defineResolver, enterEvent, eventToken, exitEvent, isEnter, newToken, noState, pushAll, resolveAllOf, splice } from "../tokenizer.lil";
+
+
+int size(Tokens tokens, int token) {
+  return tokens.eOffset[token] - tokens.sOffset[token];
+}
+
+// `movePoint` on a token's start or end: offset and buffer index together (column follows the offset).
+void moveStart(Tokens tokens, int token, int by) {
+  tokens.sOffset[token] += by;
+  tokens.sIndex[token] += by;
+}
+
+void moveEnd(Tokens tokens, int token, int by) {
+  tokens.eOffset[token] += by;
+  tokens.eIndex[token] += by;
+}
+
+int[] resolveAllAttention(int[] events, Tokenizer t) {
+  Tokens tokens = t.tokens;
+  int index = -1;
+  while (++index < events.length) {
+    int closer = eventToken(events[index]);
+    if (isEnter(events[index]) && tokens.type[closer] == tAttentionSequence && tokens.has(closer, F_CLOSE)) {
+      int open = index;
+      while (open-- > 0) {
+        int opener = eventToken(events[open]);
+        if (!isEnter(events[open]) && tokens.type[opener] == tAttentionSequence && tokens.has(opener, F_OPEN) &&
+            tokens.marker[opener] == tokens.marker[closer]) {
+          if ((tokens.has(opener, F_CLOSE) || tokens.has(closer, F_OPEN)) && size(tokens, closer) % 3 != 0 &&
+              (size(tokens, opener) + size(tokens, closer)) % 3 == 0) {
+            continue;
+          }
+          int use = if (size(tokens, opener) > 1 && size(tokens, closer) > 1) { 2 } else { 1 };
+          int openingSequence = newToken(t, if (use > 1) { tStrongSequence } else { tEmphasisSequence });
+          tokens.startAtEndOf(openingSequence, opener);
+          moveStart(tokens, openingSequence, -use);
+          tokens.endAtEndOf(openingSequence, opener);
+          int closingSequence = newToken(t, if (use > 1) { tStrongSequence } else { tEmphasisSequence });
+          tokens.startAtStartOf(closingSequence, closer);
+          tokens.endAtStartOf(closingSequence, closer);
+          moveEnd(tokens, closingSequence, use);
+          int text = newToken(t, if (use > 1) { tStrongText } else { tEmphasisText });
+          tokens.startAtEndOf(text, opener);
+          tokens.endAtStartOf(text, closer);
+          int group = newToken(t, if (use > 1) { tStrong } else { tEmphasis });
+          tokens.startAtStartOf(group, openingSequence);
+          tokens.endAtEndOf(group, closingSequence);
+
+          tokens.eIndex[opener] = tokens.sIndex[openingSequence];
+          tokens.eOffset[opener] = tokens.sOffset[openingSequence];
+          tokens.sIndex[closer] = tokens.eIndex[closingSequence];
+          tokens.sOffset[closer] = tokens.eOffset[closingSequence];
+
+          int[] nextEvents = [];
+          if (size(tokens, opener) != 0) {
+            nextEvents = pushAll(nextEvents, [enterEvent(opener), exitEvent(opener)]);
+          }
+          nextEvents = pushAll(nextEvents, [enterEvent(group), enterEvent(openingSequence), exitEvent(openingSequence), enterEvent(text)]);
+          nextEvents = pushAll(nextEvents, resolveAllOf(t.parser.constructs.insideSpan, events.slice(open + 1, index), t));
+          nextEvents = pushAll(nextEvents, [exitEvent(text), enterEvent(closingSequence), exitEvent(closingSequence), exitEvent(group)]);
+          int offset = 0;
+          if (size(tokens, closer) != 0) {
+            offset = 2;
+            nextEvents = pushAll(nextEvents, [enterEvent(closer), exitEvent(closer)]);
+          }
+          splice(events, open - 1, index - open + 3, nextEvents);
+          index = open + nextEvents.length - offset - 2;
+          break;
+        }
+      }
+    }
+  }
+  index = -1;
+  while (++index < events.length) {
+    int token = eventToken(events[index]);
+    if (tokens.type[token] == tAttentionSequence) {
+      tokens.type[token] = tData;
+    }
+  }
+  return events;
+}
+
+export int attentionResolver = defineResolver(resolveAllAttention);
+
+export Construct attention = makeAttention();
+
+Construct makeAttention() {
+  Construct c = new Construct(C_ATTENTION, (Tokenizer t, bool interrupt, func(int)->void ok, func(int)->void nok) => {
+    int[] attentionMarkers = t.parser.constructs.attentionMarkers;
+    int previous = t.previous;
+    int before = classifyCharacter(previous);
+    int marker = 0;
+    func(int)->void inside = noState;
+    inside = (int code) => {
+      if (code == marker) {
+        t.consume(code);
+        t.next = inside;
+        return;
+      }
+      int token = t.exit(tAttentionSequence);
+      int after = classifyCharacter(code);
+      bool open = after == 0 || (after == GROUP_PUNCTUATION && before != 0) || attentionMarkers.includes(code);
+      bool close = before == 0 || (before == GROUP_PUNCTUATION && after != 0) || attentionMarkers.includes(previous);
+      bool isOpen = if (marker == 42) { open } else { open && (before != 0 || !close) };
+      bool isClose = if (marker == 42) { close } else { close && (after != 0 || !open) };
+      if (isOpen) {
+        t.tokens.set(token, F_OPEN);
+      }
+      if (isClose) {
+        t.tokens.set(token, F_CLOSE);
+      }
+      ok(code);
+    };
+    return (int code) => {
+      marker = code;
+      int token = t.enter(tAttentionSequence);
+      t.tokens.marker[token] = code;
+      inside(code);
+    };
+  });
+  c.resolveAll = attentionResolver;
+  return c;
+}

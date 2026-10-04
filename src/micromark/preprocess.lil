@@ -1,0 +1,51 @@
+// micromark/lib/preprocess.js, whole-document form: a string becomes the code list, EOF last.
+
+import { BOM, CR, CRLF, EOF, HT, LF, NUL, REPLACEMENT, TAB_SIZE, VS } from "./codes.lil";
+
+export int[] preprocess(string value) {
+  int[] codes = [];
+  int column = 1;
+  bool atCarriageReturn = false;
+  int index = 0;
+  if (value.length > 0 && value.codeUnitAt(0) == BOM) {
+    index = 1;
+  }
+  while (index < value.length) {
+    int code = value.codeUnitAt(index);
+    if (code == 10 && atCarriageReturn) {
+      codes.push(CRLF);
+      atCarriageReturn = false;
+      column = 1;
+    } else {
+      if (atCarriageReturn) {
+        codes.push(CR);
+        atCarriageReturn = false;
+      }
+      if (code == NUL) {
+        codes.push(REPLACEMENT);
+        column++;
+      } else if (code == 9) {
+        int next = ((column + TAB_SIZE - 1) / TAB_SIZE | 0) * TAB_SIZE;
+        codes.push(HT);
+        while (column++ < next) {
+          codes.push(VS);
+        }
+      } else if (code == 10) {
+        codes.push(LF);
+        column = 1;
+      } else if (code == 13) {
+        atCarriageReturn = true;
+        column = 1;
+      } else {
+        codes.push(code);
+        column++;
+      }
+    }
+    index++;
+  }
+  if (atCarriageReturn) {
+    codes.push(CR);
+  }
+  codes.push(EOF);
+  return codes;
+}
