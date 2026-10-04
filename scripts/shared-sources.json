@@ -18,7 +18,7 @@
     "micromark/entities.lil": "9c608b959bfcf493e0b34182022531fc250df41de8a8605e952a92a741fcf025",
     "micromark/factories.lil": "ca80919c1bc134c2439a6fd447008f190ad049daa1a19a1585ca0fc212baef53",
     "micromark/initialize.lil": "18e3479f9f2f8cd13d4a78e6242b3ed22d378ad8cca4c55c9f55758895447ddc",
-    "micromark/parse.lil": "7e74b9ee51dba4418f99f29e91808c4d210461ee9ab36987fbc7b11aa3fe72c1",
+    "micromark/parse.lil": "f6eed67dfd8d602382c6c32fa048e9ce9838265f9fba54c10eb9abe91c819a53",
     "micromark/preprocess.lil": "e023cdadf51326535197f3b564a6af05a8f3f9f9abdfda451e02d63c429885dc",
     "micromark/subtokenize.lil": "3a5a1210a80bf8fde847542ea9d778175f8874c9dc648304d75ddbd2e2b333bc",
     "micromark/tokenizer.lil": "e3f30a934b2f2bf1a5cf3c44aaabcd2a1912523901e0112b4b1a7fd545347315",

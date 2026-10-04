@@ -132,13 +132,31 @@ SyntaxExtension makeCommonmark() {
   return e;
 }
 
-export Constructs combineAll(SyntaxExtension[] extensions) {
+// The last combination, which a parse with the same extensions (the same objects, in order) reuses: combined
+// constructs are read-only while parsing (their lookup cache only memoizes).
+SyntaxExtension[] lastExtensions = [];
+// Empty until the first parse, so nothing is combined at load.
+Constructs[] lastConstructs = [];
+
+Constructs combineFresh(SyntaxExtension[] extensions) {
   Constructs all = new Constructs();
   combine(all, commonmark);
   for (SyntaxExtension extension of extensions) {
     combine(all, extension);
   }
   return all;
+}
+
+export Constructs combineAll(SyntaxExtension[] extensions) {
+  bool same = lastConstructs.length > 0 && extensions.length == lastExtensions.length;
+  for (int index = 0; same && index < extensions.length; index++) {
+    same = extensions[index] == lastExtensions[index];
+  }
+  if (!same) {
+    lastExtensions = extensions.slice();
+    lastConstructs = [combineFresh(extensions)];
+  }
+  return lastConstructs[0];
 }
 
 export Parser createParser(Constructs constructs) {
