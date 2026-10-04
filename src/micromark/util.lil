@@ -116,6 +116,21 @@ Regex whitespaceRun = new Regex("[\\t\\n\\r ]+", "g");
 Regex edgeSpace = new Regex("^ | $", "g");
 
 export string normalizeIdentifier(string value) {
+  // Most labels have no whitespace run to collapse and no edge space to trim: skip both replaces.
+  bool plain = true;
+  int index = 0;
+  while (plain && index < value.length) {
+    int code = value.codeUnitAt(index);
+    if (code == 9 || code == 10 || code == 13) {
+      plain = false;
+    } else if (code == 32) {
+      plain = index > 0 && index < value.length - 1 && value.codeUnitAt(index + 1) != 32;
+    }
+    index++;
+  }
+  if (plain) {
+    return value.toLowerCase().toUpperCase();
+  }
   return value.replace(whitespaceRun, " ").replace(edgeSpace, "").toLowerCase().toUpperCase();
 }
 

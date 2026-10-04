@@ -23,7 +23,7 @@
     "micromark/subtokenize.lil": "3a5a1210a80bf8fde847542ea9d778175f8874c9dc648304d75ddbd2e2b333bc",
     "micromark/tokenizer.lil": "e3f30a934b2f2bf1a5cf3c44aaabcd2a1912523901e0112b4b1a7fd545347315",
     "micromark/types.lil": "a62f09d8047327670d88b17e101f52695ef87d92272132948da8cb45c4cc2684",
-    "micromark/util.lil": "a1d8a46b0b8bcf9d5eddb168b3d20fe716f29a46128c6de8bb89596c0cca02a4",
+    "micromark/util.lil": "31fc6b4da3bfb47f56f61a6178856a14220e79ef4f87ba2eb04381edca67c6b1",
     "mdast/from-markdown.lil": "512989ae656118a98b2ebecd67e3713ce3ace55322a92122fd0138b2e906b08c",
     "mdast/parse.lil": "239d92ff7ff46044067b20c539ba483d89e9824d959d7008658a293743454236",
     "mdast/tree.lil": "829f7c145942c47ed5a64ee66799c74c67524e1fb922a89ed6708551a2a9c92b",
