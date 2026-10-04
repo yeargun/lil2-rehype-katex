@@ -29,7 +29,7 @@
     "mdast/tree.lil": "829f7c145942c47ed5a64ee66799c74c67524e1fb922a89ed6708551a2a9c92b",
     "hast/hast.lil": "03d3d2d68dc3d44ac20786538ed1cb693baefb3b21afbd67fa01fa7796f15480",
     "hast/properties.lil": "3a21343b334a9c26a4c63eb50bd8a3c529430d88c1c32fe7cb42c7eb33720f8d",
-    "hast/to-hast.lil": "0212c9146ecf6ae68127fcda27291212f7f5acb74bf6561b1fd2b11a373a5328",
+    "hast/to-hast.lil": "5d566b1a9be7f52df534306e1de613c2e73815a6d17016954e56c320e5ce06a7",
     "math/hast-math.lil": "6d6c15c6452305fe9d9e93a2f2ab7dccb1eb9de2df5f7911b088a8b7aeb1433c",
     "math/ids.lil": "025443d06e5701b01d6262b08b0ae288baa3af3d3bb7a3f3e27fdadaa249e427",
     "math/math.lil": "329715e874a578acd9edc71e7aabeabff26324ee67fb1a0c8376b8eb4cb6ac87",

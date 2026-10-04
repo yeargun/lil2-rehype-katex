@@ -28,6 +28,10 @@ export class ToHast {
   string clobberPrefix;
   string footnoteLabel;
   int footnoteLabelTag;
+  // A string, or a host function of (referenceIndex, rereferenceIndex); undefined for upstream's default.
+  JsValue footnoteBackLabel;
+  // A string, or a host function of (referenceIndex, rereferenceIndex) returning one; undefined for the default.
+  JsValue footnoteBackContent;
   (func(ToHast, int, int)->int[])[] handlers;
   // Set by handlers that return several nodes (upstream returns an array).
   bool multiple;
@@ -51,6 +55,8 @@ export class ToHast {
     this.clobberPrefix = "user-content-";
     this.footnoteLabel = "Footnotes";
     this.footnoteLabelTag = TAG_H2;
+    this.footnoteBackLabel = JS.undefined();
+    this.footnoteBackContent = JS.undefined();
     this.handlers = [];
     this.multiple = false;
   }
@@ -552,13 +558,24 @@ export int footer(ToHast state) {
       int back = h.element(TAG_A);
       h.setString(back, PROP_HREF, "#" + state.clobberPrefix + "fnref-" + safeId + (if (rereferenceIndex > 1) { "-" + rereferenceIndex } else { "" }));
       h.setString(back, PROP_DATA_FOOTNOTE_BACKREF, "");
-      h.setString(back, PROP_ARIA_LABEL, "Back to reference " + (referenceIndex + 1) + (if (rereferenceIndex > 1) { "-" + rereferenceIndex } else { "" }));
+      JsValue label = state.footnoteBackLabel;
+      string ariaLabel = "Back to reference " + (referenceIndex + 1) + (if (rereferenceIndex > 1) { "-" + rereferenceIndex } else { "" });
+      if (bool(label)) {
+        ariaLabel = JS.assume(if (JS.typeOf(label) == "string") { label } else { JS.call(label, JS.undefined(), referenceIndex, rereferenceIndex) });
+      }
+      h.setString(back, PROP_ARIA_LABEL, ariaLabel);
       h.setList(back, PROP_CLASS_NAME, "data-footnote-backref");
-      h.append(back, h.text("↩"));
-      if (rereferenceIndex > 1) {
-        int sup = h.element(TAG_SUP);
-        h.append(sup, h.text("" + rereferenceIndex));
-        h.append(back, sup);
+      JsValue content = state.footnoteBackContent;
+      if (bool(content)) {
+        string text = JS.assume(if (JS.typeOf(content) == "string") { content } else { JS.call(content, JS.undefined(), referenceIndex, rereferenceIndex) });
+        h.append(back, h.text(text));
+      } else {
+        h.append(back, h.text("↩"));
+        if (rereferenceIndex > 1) {
+          int sup = h.element(TAG_SUP);
+          h.append(sup, h.text("" + rereferenceIndex));
+          h.append(back, sup);
+        }
       }
       backReferences.push(back);
     }
